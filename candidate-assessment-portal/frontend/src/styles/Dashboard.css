@@ -1,0 +1,163 @@
+/* Dashboard Page Styles */
+@import './SquircleHeader.css';
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stats Grid */
+.stats-grid {
+  @apply grid gap-5 mb-6;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.stat-card {
+  @apply flex flex-col gap-3 p-5 rounded-xl border;
+  border-color: var(--color-border);
+  background: var(--color-background-primary);
+  animation: fadeIn 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.stat-icon {
+  @apply w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0;
+}
+
+.stat-value {
+  @apply text-3xl font-medium leading-none mb-1.5;
+  color: var(--color-text-primary);
+  letter-spacing: -0.5px;
+}
+
+.stat-label {
+  @apply text-sm;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+.stat-sub {
+  @apply text-xs mt-1;
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
+/* Charts Grid */
+.charts-grid {
+  @apply grid gap-6 mb-6;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+}
+
+.chart-card {
+  @apply p-5 rounded-xl border;
+  border-color: var(--color-border);
+  animation: fadeIn 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.chart-header {
+  @apply flex items-center gap-2.5 mb-5;
+}
+
+.chart-icon {
+  @apply w-8 h-8 rounded-lg flex items-center justify-center;
+}
+
+.chart-title {
+  @apply text-base font-medium;
+  color: var(--color-text-primary);
+  letter-spacing: -0.2px;
+}
+
+/* Funnel Progress Bars */
+.funnel-container {
+  @apply flex flex-col gap-4;
+}
+
+.funnel-item-header {
+  @apply flex justify-between mb-2;
+}
+
+.funnel-stage {
+  @apply text-sm font-medium;
+  color: var(--color-text-secondary);
+}
+
+.funnel-count {
+  @apply text-sm font-medium;
+  color: var(--color-text-primary);
+}
+
+.funnel-percentage {
+  @apply text-xs;
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+
+.funnel-bar {
+  @apply w-full h-1.5 rounded-full overflow-hidden relative;
+  background: var(--color-background-secondary);
+}
+
+.funnel-bar-fill {
+  @apply h-full rounded-full;
+  background: #F472B6;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Quick Actions */
+.quick-actions-card {
+  @apply p-5 rounded-xl border;
+  border-color: var(--color-border);
+  animation: fadeIn 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.quick-actions-title {
+  @apply text-xs font-medium mb-4 uppercase tracking-wider;
+  color: var(--color-text-secondary);
+}
+
+.quick-actions-grid {
+  @apply flex gap-3 flex-wrap;
+}
+
+.quick-action-btn {
+  @apply flex items-center gap-2 h-9 px-3 rounded-lg border cursor-pointer transition-all;
+  border-color: var(--color-border);
+  background: var(--color-background-primary);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.quick-action-btn:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Loading State */
+.dashboard-loading {
+  @apply flex items-center justify-center;
+  height: 400px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}

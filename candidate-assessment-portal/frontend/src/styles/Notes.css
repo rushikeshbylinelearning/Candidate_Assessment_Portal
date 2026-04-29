@@ -1,0 +1,85 @@
+/* Notes Page Styles */
+
+/* Notes List */
+.notes-list {
+  @apply flex flex-col gap-3.5;
+}
+
+/* Note Card */
+.note-card-header {
+  @apply flex justify-between items-start mb-3;
+}
+
+.note-candidate-info {
+  @apply flex flex-col;
+}
+
+.note-candidate-name {
+  @apply font-bold text-base;
+  color: #0f172a;
+}
+
+.note-candidate-email {
+  @apply text-sm;
+  color: #64748b;
+}
+
+.note-meta {
+  @apply flex items-center gap-2;
+}
+
+.note-rating {
+  @apply flex items-center gap-1;
+}
+
+.note-rating-value {
+  @apply font-bold text-sm;
+}
+
+.note-round {
+  @apply font-semibold text-sm mb-1.5;
+  color: #334155;
+}
+
+.note-text {
+  @apply text-sm leading-relaxed mb-2.5;
+  color: #475569;
+}
+
+.note-skills {
+  @apply flex gap-4 text-sm flex-wrap;
+}
+
+.note-strengths {
+  color: #16a34a;
+}
+
+.note-weaknesses {
+  color: #e11d48;
+}
+
+.note-next-action {
+  @apply mt-2 text-sm;
+  color: #2563eb;
+}
+
+.note-footer {
+  @apply mt-2.5 text-xs;
+  color: #94a3b8;
+}
+
+/* Empty State */
+.notes-empty {
+  @apply text-center py-16;
+  color: #94a3b8;
+}
+
+.notes-empty-icon {
+  @apply mx-auto mb-3 block opacity-40;
+}
+
+/* Loading State */
+.notes-loading {
+  @apply text-center py-10;
+  color: #64748b;
+}

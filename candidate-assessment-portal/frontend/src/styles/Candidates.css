@@ -1,0 +1,693 @@
+/* Candidates Page Styles with Tailwind */
+@import './SquircleHeader.css';
+
+/* Page Layout */
+.candidates-page {
+  @apply min-h-screen bg-slate-50;
+}
+
+/* Legacy Header (keeping for backwards compatibility) */
+.page-header {
+  @apply flex justify-between items-start mb-6;
+}
+
+.page-header-content h1 {
+  @apply text-2xl font-medium text-slate-900 tracking-tight;
+}
+
+.page-header-content p {
+  @apply text-sm text-slate-600 mt-1;
+}
+
+.page-header-actions {
+  @apply flex gap-3;
+}
+
+/* Filters Card */
+.filters-card {
+  @apply mb-5 p-4;
+}
+
+.filters-container {
+  @apply flex gap-3 flex-wrap items-center;
+}
+
+.search-box {
+  @apply relative flex-1 min-w-[200px];
+}
+
+.search-box svg {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 text-slate-400;
+}
+
+.search-box input {
+  @apply w-full py-2.5 px-4 pl-10 rounded-lg border border-slate-200 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all;
+}
+
+.filter-select {
+  @apply py-2.5 px-4 rounded-lg border border-slate-200 text-sm outline-none bg-white focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all cursor-pointer;
+}
+
+/* Table Card */
+.table-card {
+  @apply p-0 overflow-hidden;
+}
+
+.table-loading {
+  @apply py-16 text-center text-slate-600;
+}
+
+.table-loading p {
+  @apply mt-3 text-sm;
+}
+
+.table-empty {
+  @apply py-20 px-6 text-center text-slate-400;
+}
+
+.table-empty svg {
+  @apply mx-auto mb-4 opacity-40;
+}
+
+.table-empty h3 {
+  @apply text-lg font-semibold text-slate-700 mb-2;
+}
+
+.table-empty p {
+  @apply text-sm text-slate-500 mb-6;
+}
+
+.empty-actions {
+  @apply flex gap-3 justify-center;
+}
+
+/* Table */
+.table-wrapper {
+  @apply overflow-x-auto;
+}
+
+.candidates-table {
+  @apply w-full border-collapse;
+}
+
+.candidates-table thead {
+  @apply bg-slate-50 border-b border-slate-200;
+}
+
+.candidates-table th {
+  @apply px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider;
+}
+
+.candidates-table tbody tr {
+  @apply border-b border-slate-100 cursor-pointer transition-colors hover:bg-slate-50;
+}
+
+.candidates-table td {
+  @apply px-4 py-4;
+}
+
+.candidate-cell {
+  @apply flex items-center gap-3;
+}
+
+.candidate-avatar {
+  @apply w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-sm flex-shrink-0;
+}
+
+.candidate-info {
+  @apply min-w-0;
+}
+
+.candidate-name {
+  @apply font-semibold text-sm text-slate-900;
+}
+
+.candidate-email {
+  @apply text-xs text-slate-500;
+}
+
+.role-cell {
+  @apply text-sm text-slate-700;
+}
+
+.score-cell {
+  @apply font-bold text-sm;
+}
+
+.score-cell.high {
+  @apply text-green-600;
+}
+
+.score-cell.medium {
+  @apply text-amber-600;
+}
+
+.score-cell.low {
+  @apply text-red-600;
+}
+
+.action-buttons {
+  @apply flex gap-2 items-center;
+}
+
+.action-btn {
+  @apply px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer flex items-center gap-1.5 whitespace-nowrap transition-all border;
+}
+
+.assign-btn {
+  @apply bg-primary-50 text-primary-600 border-primary-200 hover:bg-primary-100;
+}
+
+.view-btn {
+  @apply bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200;
+}
+
+.edit-btn {
+  @apply bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100;
+}
+
+.delete-btn {
+  @apply bg-red-50 text-red-600 border-red-200 hover:bg-red-100;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6 animate-fade-in;
+  backdrop-filter: blur(4px);
+}
+
+/* Modal Content */
+.modal-content {
+  @apply bg-white rounded-2xl w-full shadow-2xl overflow-hidden animate-fade-in;
+}
+
+.assign-modal {
+  @apply max-w-xl flex flex-col max-h-[85vh];
+}
+
+.add-candidate-modal {
+  @apply max-w-2xl;
+}
+
+.bulk-upload-modal {
+  @apply max-w-lg;
+}
+
+/* Modal Header */
+.modal-header {
+  @apply p-6 pb-5 border-b border-slate-100;
+}
+
+.modal-header-content {
+  @apply flex items-center gap-3;
+}
+
+.modal-icon {
+  @apply w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0;
+}
+
+.modal-icon svg {
+  @apply text-primary-600;
+}
+
+.bulk-icon {
+  @apply bg-blue-100;
+}
+
+.bulk-icon svg {
+  @apply text-blue-600;
+}
+
+.modal-header h2 {
+  @apply text-lg font-bold text-slate-900;
+}
+
+.modal-close-btn {
+  @apply ml-auto w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors border-none cursor-pointer;
+}
+
+/* Assign Modal */
+.assign-modal-header {
+  @apply flex justify-between items-start p-6 pb-5 border-b border-slate-100;
+}
+
+.assign-header-content {
+  @apply flex items-center gap-3;
+}
+
+.assign-icon {
+  @apply w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0;
+}
+
+.assign-icon svg {
+  @apply text-primary-600;
+}
+
+.assign-header-content h2 {
+  @apply text-lg font-bold text-slate-900;
+}
+
+.assign-header-content p {
+  @apply text-sm text-slate-600 mt-0.5;
+}
+
+.assign-search {
+  @apply relative p-4;
+}
+
+.assign-search svg {
+  @apply absolute left-7 top-1/2 -translate-y-1/2 text-slate-400;
+}
+
+.assign-search input {
+  @apply w-full py-2.5 px-4 pl-10 rounded-lg border border-slate-200 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100;
+}
+
+.assign-list {
+  @apply flex-1 overflow-y-auto p-4 pt-0 custom-scrollbar;
+}
+
+.assign-loading,
+.assign-empty {
+  @apply text-center py-8 text-sm text-slate-400;
+}
+
+.assign-item {
+  @apply flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all mb-2;
+}
+
+.assign-item:not(.selected) {
+  @apply border-slate-200 bg-slate-50 hover:border-slate-300;
+}
+
+.assign-item.selected {
+  @apply border-primary-500 bg-primary-50;
+}
+
+.assign-item input[type="radio"] {
+  @apply mt-0.5 flex-shrink-0 accent-primary-600;
+}
+
+.assign-item-content {
+  @apply flex-1 min-w-0;
+}
+
+.assign-item-header {
+  @apply flex items-center gap-2 flex-wrap mb-1;
+}
+
+.assign-item-title {
+  @apply text-sm font-semibold text-slate-900;
+}
+
+.role-match-badge {
+  @apply text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200;
+}
+
+.assign-item-meta {
+  @apply text-xs text-slate-500 flex gap-3 flex-wrap;
+}
+
+.assign-footer {
+  @apply flex gap-3 p-4 pt-4 border-t border-slate-100 bg-slate-50;
+}
+
+/* Add Candidate Form */
+.add-candidate-form {
+  @apply p-6;
+}
+
+.form-grid {
+  @apply grid grid-cols-2 gap-4 mb-5;
+}
+
+.form-field {
+  @apply flex flex-col gap-1.5;
+}
+
+.form-field label {
+  @apply text-sm font-semibold text-slate-700;
+}
+
+.form-field input,
+.form-field select {
+  @apply w-full py-2.5 px-4 rounded-lg border border-slate-200 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 transition-all;
+}
+
+.form-field select {
+  @apply bg-white cursor-pointer;
+}
+
+/* Resume Upload */
+.resume-upload-section {
+  @apply mb-5;
+}
+
+.resume-upload-section > label {
+  @apply block text-sm font-semibold text-slate-700 mb-2;
+}
+
+.resume-dropzone {
+  @apply border-2 border-dashed border-slate-300 rounded-xl p-8 cursor-pointer transition-all hover:border-primary-500 hover:bg-primary-50;
+}
+
+.resume-dropzone.has-file {
+  @apply border-solid border-slate-200 bg-slate-50 hover:bg-slate-100;
+}
+
+.resume-file-info {
+  @apply flex items-center gap-4;
+}
+
+.resume-file-info svg {
+  @apply text-primary-600 flex-shrink-0;
+}
+
+.resume-file-details {
+  @apply flex-1 min-w-0;
+}
+
+.resume-file-name {
+  @apply block text-sm font-semibold text-slate-900 truncate;
+}
+
+.resume-file-size {
+  @apply block text-xs text-slate-500 mt-0.5;
+}
+
+.resume-remove-btn {
+  @apply w-8 h-8 rounded-lg bg-red-100 hover:bg-red-200 flex items-center justify-center text-red-600 transition-colors border-none cursor-pointer;
+}
+
+.resume-dropzone-content {
+  @apply text-center;
+}
+
+.resume-dropzone-content svg {
+  @apply mx-auto mb-3 text-slate-400;
+}
+
+.resume-dropzone-title {
+  @apply text-sm font-semibold text-slate-700 mb-1;
+}
+
+.resume-dropzone-subtitle {
+  @apply text-xs text-slate-500;
+}
+
+/* Bulk Upload */
+.bulk-upload-body {
+  @apply p-6;
+}
+
+.bulk-upload-instructions {
+  @apply mb-5 p-4 bg-blue-50 rounded-lg border border-blue-200;
+}
+
+.bulk-upload-instructions h3 {
+  @apply text-sm font-bold text-blue-900 mb-2;
+}
+
+.bulk-upload-instructions ol {
+  @apply list-decimal list-inside text-sm text-blue-800 space-y-1;
+}
+
+.download-template-btn {
+  @apply w-full py-3 px-4 rounded-lg bg-slate-900 text-white font-semibold text-sm cursor-pointer flex items-center justify-center gap-2 mb-5 border-none hover:bg-slate-800 transition-colors;
+}
+
+.bulk-dropzone {
+  @apply border-2 border-dashed border-slate-300 rounded-xl p-12 cursor-pointer transition-all hover:border-primary-500 hover:bg-primary-50 mb-5;
+}
+
+.bulk-dropzone.has-file {
+  @apply border-solid border-slate-200 bg-slate-50 hover:bg-slate-100;
+}
+
+.bulk-file-info {
+  @apply flex items-center gap-4;
+}
+
+.bulk-file-info svg {
+  @apply text-primary-600 flex-shrink-0;
+}
+
+.bulk-file-details {
+  @apply flex-1 min-w-0;
+}
+
+.bulk-file-name {
+  @apply block text-base font-semibold text-slate-900 truncate;
+}
+
+.bulk-file-size {
+  @apply block text-sm text-slate-500 mt-1;
+}
+
+.bulk-remove-btn {
+  @apply w-10 h-10 rounded-lg bg-red-100 hover:bg-red-200 flex items-center justify-center text-red-600 transition-colors border-none cursor-pointer;
+}
+
+.bulk-dropzone-content {
+  @apply text-center;
+}
+
+.bulk-dropzone-content svg {
+  @apply mx-auto mb-4 text-slate-400;
+}
+
+.bulk-dropzone-title {
+  @apply text-base font-semibold text-slate-700 mb-1;
+}
+
+.bulk-dropzone-subtitle {
+  @apply text-sm text-slate-500;
+}
+
+.bulk-actions {
+  @apply flex gap-3;
+}
+
+/* Bulk Results */
+.bulk-results {
+  @apply text-center;
+}
+
+.bulk-results-summary {
+  @apply grid grid-cols-2 gap-4 mb-6;
+}
+
+.bulk-result-card {
+  @apply p-6 rounded-xl border-2 flex flex-col items-center gap-3;
+}
+
+.bulk-result-card.success {
+  @apply border-green-200 bg-green-50;
+}
+
+.bulk-result-card.success svg {
+  @apply text-green-600;
+}
+
+.bulk-result-card.error {
+  @apply border-red-200 bg-red-50;
+}
+
+.bulk-result-card.error svg {
+  @apply text-red-600;
+}
+
+.bulk-result-number {
+  @apply block text-3xl font-bold;
+}
+
+.bulk-result-card.success .bulk-result-number {
+  @apply text-green-700;
+}
+
+.bulk-result-card.error .bulk-result-number {
+  @apply text-red-700;
+}
+
+.bulk-result-label {
+  @apply block text-sm font-medium text-slate-600;
+}
+
+.bulk-errors {
+  @apply text-left mb-6 p-4 bg-red-50 rounded-lg border border-red-200;
+}
+
+.bulk-errors h4 {
+  @apply text-sm font-bold text-red-900 mb-2;
+}
+
+.bulk-errors ul {
+  @apply space-y-2;
+}
+
+.bulk-errors li {
+  @apply flex items-start gap-2 text-sm text-red-800;
+}
+
+.bulk-errors svg {
+  @apply flex-shrink-0 mt-0.5;
+}
+
+/* Form Actions */
+.form-actions {
+  @apply flex gap-3;
+}
+
+/* Buttons */
+.btn-primary {
+  @apply flex-1 py-3 px-4 rounded-lg bg-primary-600 text-white border-none font-bold text-sm cursor-pointer flex items-center justify-center gap-2 transition-all hover:bg-primary-700 disabled:bg-slate-300 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply flex-1 py-3 px-4 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-sm cursor-pointer flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .form-grid {
+    @apply grid-cols-1;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    @apply flex-col items-start gap-4;
+  }
+
+  .page-header-actions {
+    @apply w-full flex-col;
+  }
+
+  .filters-container {
+    @apply flex-col;
+  }
+
+  .search-box {
+    @apply w-full;
+  }
+
+  .candidates-table {
+    @apply text-xs;
+  }
+
+  .modal-content {
+    @apply w-[95%] max-w-none;
+  }
+}
+
+/* Delete Modal */
+.delete-modal {
+  @apply max-w-md;
+}
+
+.delete-header {
+  @apply bg-red-50 border-b border-red-100;
+}
+
+.delete-icon {
+  @apply bg-red-100;
+}
+
+.delete-icon svg {
+  @apply text-red-600;
+}
+
+.delete-modal-body {
+  @apply p-6;
+}
+
+.delete-modal-body p {
+  @apply text-sm text-slate-700 mb-3;
+}
+
+.delete-modal-body p:last-child {
+  @apply mb-0;
+}
+
+.delete-warning {
+  @apply text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-100;
+}
+
+.btn-danger {
+  @apply flex-1 py-3 px-4 rounded-lg bg-red-600 text-white border-none font-semibold text-sm cursor-pointer flex items-center justify-center gap-2 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Current Resume Info */
+.current-resume-info {
+  @apply flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200 mb-3;
+}
+
+.current-resume-info svg {
+  @apply text-blue-600;
+}
+
+.current-resume-info span {
+  @apply text-sm text-blue-900 flex-1;
+}
+
+.view-resume-link {
+  @apply text-sm font-semibold text-blue-600 hover:text-blue-700 underline;
+}

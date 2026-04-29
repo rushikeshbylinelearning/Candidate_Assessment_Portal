@@ -1,0 +1,184 @@
+/* Roles Page Styles */
+@import './SquircleHeader.css';
+
+/* Roles Grid */
+.roles-grid {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/* Role Card */
+.role-card-header {
+  @apply flex justify-between items-start mb-3;
+}
+
+.role-card-info {
+  @apply flex gap-3 items-center;
+}
+
+.role-icon {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center;
+  background: #e11d4815;
+}
+
+.role-title {
+  @apply font-bold text-base;
+  color: #0f172a;
+}
+
+.role-department {
+  @apply text-sm;
+  color: #64748b;
+}
+
+.role-edit-btn {
+  @apply bg-transparent border-none cursor-pointer p-1;
+  color: #94a3b8;
+}
+
+.role-edit-btn:hover {
+  color: #64748b;
+}
+
+.role-badges {
+  @apply flex gap-2 mb-4 flex-wrap;
+}
+
+/* Scoring Weights */
+.scoring-section-title {
+  @apply text-xs font-semibold mb-2 uppercase tracking-wider;
+  color: #64748b;
+}
+
+.scoring-weights {
+  @apply flex flex-col gap-1.5;
+}
+
+.scoring-weight-item {
+  @apply mb-0.5;
+}
+
+.scoring-weight-header {
+  @apply flex justify-between mb-1;
+}
+
+.scoring-weight-label {
+  @apply text-xs capitalize;
+  color: #64748b;
+}
+
+.scoring-weight-value {
+  @apply text-xs font-semibold;
+}
+
+.scoring-weight-bar {
+  @apply h-1 rounded-sm;
+  background: #f1f5f9;
+}
+
+.scoring-weight-bar-fill {
+  @apply h-full rounded-sm;
+  background: #e11d48;
+}
+
+/* Modal */
+.role-modal-overlay {
+  @apply fixed inset-0 flex items-center justify-center z-50 p-6;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.role-modal-content {
+  @apply bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl;
+}
+
+.role-modal-title {
+  @apply text-xl font-bold mb-6;
+}
+
+.role-form {
+  @apply flex flex-col gap-4;
+}
+
+.role-form-field {
+  @apply flex flex-col;
+}
+
+.role-form-label {
+  @apply block text-sm font-semibold mb-1.5;
+  color: #334155;
+}
+
+.role-form-input,
+.role-form-select {
+  @apply w-full px-3.5 py-2.5 rounded-lg border text-sm outline-none;
+  border-color: #e2e8f0;
+}
+
+.role-form-input:focus,
+.role-form-select:focus {
+  border-color: var(--color-primary);
+  ring: 2px;
+  ring-color: var(--color-primary-light);
+}
+
+.role-form-select {
+  @apply bg-white cursor-pointer;
+}
+
+.role-form-grid {
+  @apply grid grid-cols-2 gap-3;
+}
+
+/* Scoring Weights Form */
+.scoring-weights-form {
+  @apply grid grid-cols-2 gap-2.5;
+}
+
+.scoring-weight-input-label {
+  @apply block text-xs mb-1 capitalize;
+  color: #64748b;
+}
+
+.scoring-weight-input {
+  @apply w-full px-3 py-2 rounded-lg border text-sm outline-none;
+  border-color: #e2e8f0;
+}
+
+.scoring-total {
+  @apply text-xs mt-2;
+  color: #64748b;
+}
+
+.scoring-total-value {
+  @apply font-bold;
+}
+
+.scoring-total-value.valid {
+  color: #16a34a;
+}
+
+.scoring-total-value.invalid {
+  color: #e11d48;
+}
+
+/* Form Actions */
+.role-form-actions {
+  @apply flex gap-3 mt-2;
+}
+
+/* Loading State */
+.roles-loading {
+  @apply text-center py-10;
+  color: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .roles-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-form-grid {
+    @apply grid-cols-1;
+  }
+}
