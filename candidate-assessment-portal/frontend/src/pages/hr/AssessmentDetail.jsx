@@ -8,7 +8,229 @@ import toast from 'react-hot-toast';
 import {
   ArrowLeft, Clock, Users, CheckCircle, XCircle, Trash2,
   Edit2, Save, X, Send, ChevronRight, ToggleLeft, ToggleRight,
+  ChevronDown, ChevronUp, AlertCircle,
 } from 'lucide-react';
+import PageShell from '../../components/layout/PageShell';
+
+const TYPE_LABELS = {
+  mcq_single: 'MCQ',
+  mcq_multi: 'MCQ (Multi)',
+  true_false: 'True / False',
+  short_answer: 'Descriptive',
+  scenario: 'Scenario',
+  logic: 'Logic',
+  coding: 'Coding',
+};
+
+const DIFFICULTY_STYLES = {
+  easy:   { background: '#dcfce7', color: '#15803d' },
+  medium: { background: '#fef9c3', color: '#a16207' },
+  hard:   { background: '#fee2e2', color: '#b91c1c' },
+};
+
+const CAT_STYLES = {
+  technical:     { background: '#dbeafe', color: '#1d4ed8' },
+  aptitude:      { background: '#fae8ff', color: '#7e22ce' },
+  reasoning:     { background: '#ffedd5', color: '#c2410c' },
+  communication: { background: '#dcfce7', color: '#15803d' },
+};
+
+function InlineBadge({ label, style }) {
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.4px',
+      padding: '2px 9px', borderRadius: 20, textTransform: 'capitalize',
+      whiteSpace: 'nowrap', ...style,
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function QuestionRow({ q, index, onUpdate, isAssigned }) {
+  const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ type: q.type, text: q.text });
+  const [saving, setSaving] = useState(false);
+  
+  const diffStyle = DIFFICULTY_STYLES[q.difficulty] || { background: '#f1f5f9', color: '#64748b' };
+  const catStyle  = CAT_STYLES[q.category]  || { background: '#f1f5f9', color: '#64748b' };
+  const hasOptions = q.options && q.options.length > 0;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/questions/${q._id}`, {
+        type: editForm.type,
+        text: editForm.text,
+      });
+      toast.success('Question updated');
+      setEditing(false);
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update question');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditForm({ type: q.type, text: q.text });
+    setEditing(false);
+  };
+
+  return (
+    <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+      <div
+        style={{
+          display: 'flex', alignItems: 'flex-start', gap: 12,
+          padding: '12px 16px', background: '#fff',
+        }}
+      >
+        {/* Number */}
+        <div style={{
+          width: 26, height: 26, borderRadius: 7, background: '#f8fafc',
+          border: '1.5px solid #e2e8f0', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', fontSize: 11, fontWeight: 700,
+          color: '#64748b', flexShrink: 0, marginTop: 1,
+        }}>
+          {index + 1}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {editing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Type selector */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                  Question Type
+                </label>
+                <select
+                  value={editForm.type}
+                  onChange={e => setEditForm(p => ({ ...p, type: e.target.value }))}
+                  style={{
+                    width: '100%', padding: '8px 12px', borderRadius: 8,
+                    border: '1px solid #e2e8f0', fontSize: 13, outline: 'none',
+                    background: '#fff', cursor: 'pointer',
+                  }}
+                >
+                  {Object.entries(TYPE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Question text */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+                  Question Text
+                </label>
+                <textarea
+                  value={editForm.text}
+                  onChange={e => setEditForm(p => ({ ...p, text: e.target.value }))}
+                  rows={3}
+                  style={{
+                    width: '100%', padding: '9px 12px', borderRadius: 8,
+                    border: '1px solid #e2e8f0', fontSize: 13, outline: 'none',
+                    resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.6,
+                  }}
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={handleCancel}
+                  disabled={saving}
+                  style={{
+                    padding: '6px 14px', borderRadius: 7, border: '1px solid #e2e8f0',
+                    background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  <X size={14} /> Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !editForm.text.trim()}
+                  style={{
+                    padding: '6px 14px', borderRadius: 7, border: 'none',
+                    background: saving || !editForm.text.trim() ? '#94a3b8' : '#e11d48',
+                    color: '#fff', fontSize: 13, fontWeight: 600,
+                    cursor: saving || !editForm.text.trim() ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  <Save size={14} /> {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 6 }}>
+                <InlineBadge label={TYPE_LABELS[q.type] || q.type} style={{ background: '#f1f5f9', color: '#475569' }} />
+                <InlineBadge label={q.category} style={catStyle} />
+                <InlineBadge label={q.difficulty} style={diffStyle} />
+                <InlineBadge label={`${q.points ?? 1} pt`} style={{ background: '#f0fdf4', color: '#15803d' }} />
+              </div>
+              <p style={{ fontSize: 13.5, color: '#0f172a', lineHeight: 1.6, margin: 0 }}>{q.text}</p>
+            </>
+          )}
+        </div>
+
+        {!editing && (
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 2 }}>
+            {!isAssigned && (
+              <button
+                onClick={() => setEditing(true)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#64748b', padding: 4, display: 'flex', alignItems: 'center',
+                }}
+                title="Edit question"
+              >
+                <Edit2 size={15} />
+              </button>
+            )}
+            {hasOptions && (
+              <button
+                onClick={() => setExpanded(e => !e)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#94a3b8', padding: 4, display: 'flex', alignItems: 'center',
+                }}
+                title={expanded ? 'Collapse options' : 'Expand options'}
+              >
+                {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {expanded && hasOptions && !editing && (
+        <div style={{ padding: '0 16px 12px 54px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {q.options.map(opt => (
+            <div key={opt.id} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '5px 10px', borderRadius: 7,
+              background: q.correctAnswer === opt.id ? '#f0fdf4' : '#fff',
+              border: `1px solid ${q.correctAnswer === opt.id ? '#86efac' : '#e2e8f0'}`,
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', minWidth: 14 }}>
+                {opt.id})
+              </span>
+              <span style={{ fontSize: 13, color: '#334155' }}>{opt.text}</span>
+              {q.correctAnswer === opt.id && (
+                <CheckCircle size={13} color="#16a34a" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AssessmentDetail() {
   const { id } = useParams();
@@ -85,12 +307,9 @@ export default function AssessmentDetail() {
   const handleAssign = async (candidateId) => {
     setAssigning(candidateId);
     try {
-      const { data } = await api.post(`/candidates/${candidateId}/invite`, { assessmentId: id });
-      toast.success('Assessment assigned & invite link generated');
+      const { data } = await api.post(`/candidates/${candidateId}/invite`, { assessmentIds: { ROLE_BASED_ASSESSMENT: id } });
+      toast.success(data.message || 'Assessment assigned successfully');
       setShowAssign(false);
-      // Show the link
-      navigator.clipboard.writeText(data.assessmentLink).catch(() => {});
-      toast.success('Invite link copied to clipboard!', { duration: 5000 });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to assign assessment');
     } finally {
@@ -98,10 +317,11 @@ export default function AssessmentDetail() {
     }
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Loading...</div>;
-  if (!assessment) return <div style={{ padding: 40, textAlign: 'center', color: '#e11d48' }}>Assessment not found</div>;
+  if (loading) return <PageShell><div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Loading...</div></PageShell>;
+  if (!assessment) return <PageShell><div style={{ padding: 40, textAlign: 'center', color: '#e11d48' }}>Assessment not found</div></PageShell>;
 
   return (
+    <PageShell scrollable>
     <div>
       <button
         onClick={() => navigate('/hr/assessments/create')}
@@ -128,6 +348,12 @@ export default function AssessmentDetail() {
               {assessment.active ? <CheckCircle size={14} /> : <XCircle size={14} />}
               {assessment.active ? 'Active' : 'Inactive'}
             </div>
+            {assessment.isAssigned && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, color: '#f59e0b', background: '#fef3c7', padding: '4px 10px', borderRadius: 6 }}>
+                <Users size={14} />
+                Assigned to Candidates
+              </div>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -138,13 +364,29 @@ export default function AssessmentDetail() {
             </>
           ) : (
             <>
-              <Button size="sm" variant="secondary" onClick={() => setEditing(true)}><Edit2 size={14} /> Edit</Button>
+              <Button 
+                size="sm" 
+                variant="secondary" 
+                onClick={() => setEditing(true)}
+                disabled={assessment.isAssigned}
+                title={assessment.isAssigned ? 'Cannot edit assessment that has been assigned to candidates' : 'Edit assessment'}
+              >
+                <Edit2 size={14} /> Edit
+              </Button>
               <Button size="sm" variant="secondary" onClick={handleToggle}>
                 {assessment.active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
                 {assessment.active ? 'Deactivate' : 'Activate'}
               </Button>
               <Button size="sm" onClick={() => setShowAssign(true)}><Send size={14} /> Assign to Candidate</Button>
-              <Button size="sm" variant="danger" onClick={handleDelete}><Trash2 size={14} /> Delete</Button>
+              <Button 
+                size="sm" 
+                variant="danger" 
+                onClick={handleDelete}
+                disabled={assessment.isAssigned}
+                title={assessment.isAssigned ? 'Cannot delete assessment that has been assigned to candidates' : 'Delete assessment'}
+              >
+                <Trash2 size={14} /> Delete
+              </Button>
             </>
           )}
         </div>
@@ -164,6 +406,30 @@ export default function AssessmentDetail() {
           </Card>
         ))}
       </div>
+
+      {/* Warning message when assigned */}
+      {assessment.isAssigned && (
+        <div style={{ 
+          background: '#fef3c7', 
+          border: '1.5px solid #fbbf24', 
+          borderRadius: 12, 
+          padding: '14px 18px', 
+          marginBottom: 24,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12
+        }}>
+          <AlertCircle size={20} color="#f59e0b" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#92400e', marginBottom: 2 }}>
+              Assessment is Assigned
+            </div>
+            <div style={{ fontSize: 13, color: '#78350f' }}>
+              This assessment has been assigned to candidates and cannot be edited or deleted. To make changes, create a new version of this assessment.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {/* Config */}
@@ -252,6 +518,20 @@ export default function AssessmentDetail() {
         </Card>
       </div>
 
+      {/* Questions List */}
+      {assessment.selectedQuestions && assessment.selectedQuestions.length > 0 && (
+        <Card style={{ padding: 24, marginTop: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>
+            Questions ({assessment.selectedQuestions.length})
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {assessment.selectedQuestions.map((q, i) => (
+              <QuestionRow key={q._id} q={q} index={i} onUpdate={fetchAssessment} isAssigned={assessment.isAssigned} />
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Assign Modal */}
       {showAssign && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
@@ -303,5 +583,6 @@ export default function AssessmentDetail() {
         </div>
       )}
     </div>
+    </PageShell>
   );
 }

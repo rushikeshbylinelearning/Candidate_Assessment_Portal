@@ -3,7 +3,9 @@ const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['mcq_single', 'mcq_multi', 'true_false', 'short_answer', 'scenario', 'logic', 'coding'],
+    // 'short_answer' is used for descriptive/open-ended questions (including PDF-imported ones).
+    // 'descriptive', 'text', 'essay' are accepted as aliases for short_answer on ingest.
+    enum: ['mcq_single', 'mcq_multi', 'true_false', 'short_answer', 'scenario', 'logic', 'coding', 'descriptive', 'text', 'essay'],
     required: true,
   },
   category: {

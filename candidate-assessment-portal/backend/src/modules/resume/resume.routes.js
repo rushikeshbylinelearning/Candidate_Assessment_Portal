@@ -7,6 +7,9 @@ const upload = require('../../config/multer');
 // All routes require authentication
 router.use(protect);
 
+// Get parsing status (lightweight poll)
+router.get('/:candidateId/status', resumeController.getParsingStatus);
+
 // Upload and parse resume
 router.post('/upload/:candidateId', upload.single('resume'), resumeController.uploadAndParse);
 
@@ -24,5 +27,8 @@ router.delete('/:candidateId', resumeController.deleteResumeData);
 
 // Match resume with role
 router.get('/:candidateId/match/:roleId', resumeController.matchWithRole);
+
+// Recompute skill match
+router.post('/:candidateId/recompute-match', resumeController.recomputeMatch);
 
 module.exports = router;

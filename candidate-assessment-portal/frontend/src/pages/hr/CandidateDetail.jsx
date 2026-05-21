@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../../styles/CandidateDetail.css';
+import PageShell from '../../components/layout/PageShell';
 
 export default function CandidateDetail() {
   const { id } = useParams();
@@ -29,6 +30,7 @@ export default function CandidateDetail() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [noteText, setNoteText] = useState('');
+  const parsingPollRef = React.useRef(null);
 
   // Strength & Weakness Management
   const [strengths, setStrengths] = useState([]);
@@ -37,15 +39,13 @@ export default function CandidateDetail() {
   const [newWeakness, setNewWeakness] = useState('');
 
   const fetchAll = async () => {
-    const [c, r, s, l] = await Promise.all([
+    const [c, r, l] = await Promise.all([
       api.get(`/candidates/${id}`),
       api.get(`/responses?candidateId=${id}`).catch(() => ({ data: [] })),
-      api.get(`/responses/score/${id}`).catch(() => ({ data: null })),
       api.get(`/notes?candidateId=${id}`),
     ]);
     setCandidate(c.data);
     setResponses(r.data);
-    setScore(s.data);
     setLogs(l.data);
 
     // Aggregate strengths and weaknesses from interview logs
@@ -54,23 +54,148 @@ export default function CandidateDetail() {
     const allWeaknesses = l.data.flatMap(log => log.weaknesses || []);
     setWeaknesses([...new Set(allWeaknesses)]);
 
+    // Fetch assessment scores from the pipeline (pipeline-based flow)
+    try {
+      const pipelinesRes = await api.get(`/pipeline/candidate/${id}`);
+      const pipelines = pipelinesRes.data?.pipelines || [];
+      // Use the most recent pipeline that has a completed ROLE_BASED_ASSESSMENT step
+      const completedPipeline = pipelines.find(p =>
+        p.completedSteps?.includes('ROLE_BASED_ASSESSMENT') ||
+        p.status === 'FINISHED'
+      ) || pipelines[0];
+
+      if (completedPipeline) {
+        try {
+          const stepDataRes = await api.get(`/pipeline/${completedPipeline.pipelineId}/step/ROLE_BASED_ASSESSMENT/data`);
+          const stepData = stepDataRes.data?.data;
+          const stepScore = stepDataRes.data?.score;
+
+          // If scores are missing (legacy data before fix), trigger a recompute
+          if (stepData && stepData.responses?.length > 0 && stepData.autoScore == null) {
+            try {
+              await api.post(`/pipeline/${completedPipeline.pipelineId}/recompute-scores`);
+              // Re-fetch after recompute
+              const refreshedRes = await api.get(`/pipeline/${completedPipeline.pipelineId}/step/ROLE_BASED_ASSESSMENT/data`);
+              const refreshedData = refreshedRes.data?.data;
+              if (refreshedData && refreshedData.sectionScores) {
+                setScore({
+                  sectionScores: refreshedData.sectionScores,
+                  autoScore: refreshedData.autoScore,
+                  completionRate: refreshedData.completionRate,
+                });
+                return;
+              }
+            } catch {
+              // Recompute failed — continue with what we have
+            }
+          }
+
+          if (stepData && (stepData.sectionScores || stepScore != null)) {
+            setScore({
+              sectionScores: stepData.sectionScores || {},
+              autoScore: stepData.autoScore ?? stepScore,
+              completionRate: stepData.completionRate,
+              aggregateScore: completedPipeline.aggregateScore,
+            });
+          }
+        } catch {
+          // Step data not available yet — leave score as null
+        }
+      }
+    } catch {
+      // Pipeline not found — fall back to legacy score endpoint
+      try {
+        const legacyScore = await api.get(`/responses/score/${id}`);
+        if (legacyScore.data) setScore(legacyScore.data);
+      } catch {
+        // No score available
+      }
+    }
+
     if (c.data.resumeUrl) {
       try {
         const resumeRes = await api.get(`/resume/${id}`);
         setResumeData(resumeRes.data);
-        if (c.data.appliedRole?._id) {
-          const matchRes = await api.get(`/resume/${id}/match/${c.data.appliedRole._id}`);
-          setRoleMatch(matchRes.data);
+
+        // If still processing, start polling
+        if (resumeRes.data.parsingStatus === 'processing') {
+          startParsingPoll(id);
+        }
+
+        // Use stored skillMatchResult from candidate doc first
+        if (c.data.skillMatchResult) {
+          setRoleMatch(c.data.skillMatchResult);
+        } else if (c.data.appliedRole?._id) {
+          // Compute it if not stored yet
+          try {
+            const matchRes = await api.get(`/resume/${id}/match/${c.data.appliedRole._id}`);
+            setRoleMatch(matchRes.data);
+          } catch (matchErr) {
+            console.log('Match not available yet');
+          }
         }
       } catch (err) {
         console.log('Resume data not available yet');
       }
+    } else if (c.data.skillMatchResult) {
+      // Candidate has stored match result even without resume URL
+      setRoleMatch(c.data.skillMatchResult);
     }
   };
 
   useEffect(() => {
     fetchAll().finally(() => setLoading(false));
+    return () => {
+      // Cleanup polling on unmount
+      if (parsingPollRef.current) {
+        clearInterval(parsingPollRef.current);
+      }
+    };
   }, [id]);
+
+  /**
+   * Poll the parsing status every 3 seconds until completed or failed.
+   * Shows a persistent toast while parsing, then refreshes resume data.
+   */
+  const startParsingPoll = (candidateId) => {
+    if (parsingPollRef.current) return; // Already polling
+
+    const toastId = toast.loading('Parsing resume… Gemini AI is extracting structured data.', {
+      duration: Infinity,
+    });
+
+    parsingPollRef.current = setInterval(async () => {
+      try {
+        const statusRes = await api.get(`/resume/${candidateId}/status`);
+        const { parsingStatus, parsingError } = statusRes.data;
+
+        if (parsingStatus === 'completed') {
+          clearInterval(parsingPollRef.current);
+          parsingPollRef.current = null;
+          toast.dismiss(toastId);
+          toast.success('Resume parsed successfully! Data auto-filled from resume.');
+          // Refresh full resume data
+          const resumeRes = await api.get(`/resume/${candidateId}`);
+          setResumeData(resumeRes.data);
+          // Refresh candidate for updated skillMatchResult
+          const candidateRes = await api.get(`/candidates/${candidateId}`);
+          if (candidateRes.data.skillMatchResult) {
+            setRoleMatch(candidateRes.data.skillMatchResult);
+          }
+        } else if (parsingStatus === 'failed') {
+          clearInterval(parsingPollRef.current);
+          parsingPollRef.current = null;
+          toast.dismiss(toastId);
+          toast.error(parsingError || 'Resume parsing failed. Please try again or enter details manually.');
+          // Refresh to show failed state
+          const resumeRes = await api.get(`/resume/${candidateId}`);
+          setResumeData(resumeRes.data);
+        }
+      } catch (err) {
+        console.warn('[parsingPoll] Status check failed:', err.message);
+      }
+    }, 3000);
+  };
 
   const handleLogSubmit = async (e) => {
     e.preventDefault();
@@ -120,27 +245,31 @@ export default function CandidateDetail() {
 
   if (loading) {
     return (
-      <div className="candidate-detail-loading">
-        <div className="shimmer-container">
-          <div className="shimmer shimmer-hero"></div>
-          <div className="shimmer-columns">
-            <div className="shimmer shimmer-panel"></div>
-            <div className="shimmer shimmer-panel"></div>
+      <PageShell noPad>
+        <div className="cd-loading">
+          <div className="shimmer-container">
+            <div className="shimmer shimmer-hero"></div>
+            <div className="shimmer-columns">
+              <div className="shimmer shimmer-panel"></div>
+              <div className="shimmer shimmer-panel"></div>
+            </div>
           </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (!candidate) {
     return (
-      <div className="candidate-detail-error">
-        <div className="error-content">
-          <XCircle size={48} />
-          <h2>Candidate not found</h2>
-          <Button onClick={() => navigate('/hr/candidates')}>Back to Candidates</Button>
+      <PageShell noPad>
+        <div className="cd-error">
+          <div className="error-content">
+            <XCircle size={48} />
+            <h2>Candidate not found</h2>
+            <Button onClick={() => navigate('/hr/candidates')}>Back to Candidates</Button>
+          </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
@@ -159,72 +288,95 @@ export default function CandidateDetail() {
   };
 
   return (
+    <PageShell noPad>
     <div className="candidate-detail-page">
       <div className="candidate-columns">
-        {/* ===================== LEFT PANEL (FIXED) ===================== */}
+        {/* ===================== LEFT PANEL ===================== */}
         <div className="column-left">
-          {/* Candidate Header */}
-          <div className="candidate-header-card" style={{ flexShrink: 0 }}>
-            <div className="candidate-header-top">
-              <div className="candidate-avatar-info">
-                <div className="candidate-avatar">
-                  {(candidate.name || 'U')[0].toUpperCase()}
-                </div>
-                <div>
-                  <h2 className="candidate-name">{candidate.name}</h2>
-                  <div className="candidate-contact">
-                    <span className="candidate-contact-item">
-                      <Mail size={12} />
-                      {candidate.email}
-                    </span>
-                    {candidate.phone && (
-                      <>
-                        <span className="contact-sep">|</span>
-                        <span className="candidate-contact-item">
-                          <Phone size={12} />
-                          {candidate.phone}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
+
+          {/* ── Profile Header ── */}
+          <div className="cd-profile-header">
+
+            {/* Avatar row */}
+            <div className="cd-avatar-row">
+              <div className="cd-avatar">
+                {(candidate.name || 'U')[0].toUpperCase()}
               </div>
               {candidate.resumeUrl && (
                 <button
-                  className="view-original-btn"
+                  className="cd-view-original-btn"
                   onClick={() => setShowOriginalResume(!showOriginalResume)}
                 >
                   <FileText size={12} />
-                  View Original
+                  View Resume
                 </button>
               )}
             </div>
-            <div className="candidate-tags">
-              {candidate.appliedRole?.title && (
-                <span className="candidate-tag">{candidate.appliedRole.title}</span>
-              )}
-              {candidate.appliedRole?.department && (
-                <span className="candidate-tag">{candidate.appliedRole.department}</span>
-              )}
-              {candidate.experienceLevel && (
-                <span className="candidate-tag">{candidate.experienceLevel}</span>
+
+            {/* Name */}
+            <h2 className="cd-name">{candidate.name}</h2>
+
+            {/* Contact rows */}
+            <div className="cd-contacts">
+              <span className="cd-contact-item">
+                <Mail size={12} strokeWidth={1.75} />
+                {candidate.email}
+              </span>
+              {candidate.phone && (
+                <span className="cd-contact-item">
+                  <Phone size={12} strokeWidth={1.75} />
+                  {candidate.phone}
+                </span>
               )}
             </div>
-            
 
+            {/* Divider */}
+            <div className="cd-header-divider" />
+
+            {/* Meta rows — label + value pairs */}
+            <div className="cd-meta-list">
+              {candidate.appliedRole?.title && (
+                <div className="cd-meta-row">
+                  <span className="cd-meta-label">Role</span>
+                  <span className="cd-meta-value">{candidate.appliedRole.title}</span>
+                </div>
+              )}
+              {candidate.appliedRole?.department && (
+                <div className="cd-meta-row">
+                  <span className="cd-meta-label">Department</span>
+                  <span className="cd-meta-value">{candidate.appliedRole.department}</span>
+                </div>
+              )}
+              {candidate.experienceLevel && (
+                <div className="cd-meta-row">
+                  <span className="cd-meta-label">Level</span>
+                  <span className="cd-meta-value" style={{ textTransform: 'capitalize' }}>
+                    {candidate.experienceLevel}
+                  </span>
+                </div>
+              )}
+              {candidate.assessmentStatus && (
+                <div className="cd-meta-row">
+                  <span className="cd-meta-label">Status</span>
+                  <span className="cd-meta-value" style={{ textTransform: 'capitalize' }}>
+                    {candidate.assessmentStatus.replace(/_/g, ' ')}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Resume Section Label */}
+          {/* ── Resume section label ── */}
           <div className="resume-section-label">
             <span>Resume</span>
           </div>
 
-          {/* Scrollable resume area: StructuredResume + Download button */}
+          {/* ── Scrollable resume area ── */}
           <div className="resume-panel-scroll">
-            {/* Structured Resume with vertical nav tabs */}
             <StructuredResume
               resumeData={resumeData}
               candidate={candidate}
+              roleData={candidate.appliedRole}
               onViewOriginal={() => setShowOriginalResume(true)}
               showOriginal={showOriginalResume}
               onHideOriginal={() => setShowOriginalResume(false)}
@@ -261,7 +413,7 @@ export default function CandidateDetail() {
 
             {/* Score Cards Row */}
             <div className="score-cards-row">
-              {(score === null || !score?.sectionScores) ? (
+              {(score === null || !score?.sectionScores || Object.keys(score.sectionScores).length === 0) ? (
                 <div className="score-card-placeholder">
                   No assessment taken yet. Scores will appear here once the candidate completes their assessment.
                 </div>
@@ -280,7 +432,7 @@ export default function CandidateDetail() {
                       >
                         {skillIcons[category] || <BarChart2 size={16} />}
                       </div>
-                      <div className="score-card-value">{value}</div>
+                      <div className="score-card-value">{value}%</div>
                       <div className="score-card-label">
                         {category.charAt(0).toUpperCase() + category.slice(1)}
                       </div>
@@ -504,5 +656,6 @@ export default function CandidateDetail() {
         <Edit2 size={18} />
       </button>
     </div>
+    </PageShell>
   );
 }

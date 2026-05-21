@@ -9,7 +9,6 @@ import Candidates from './pages/hr/Candidates';
 import CandidateDetail from './pages/hr/CandidateDetail';
 import AssessmentReview from './pages/hr/AssessmentReview';
 import Roles from './pages/hr/Roles';
-import Questions from './pages/hr/Questions';
 import CreateAssessment from './pages/hr/CreateAssessment';
 import AssessmentBuilderStandard from './pages/hr/AssessmentBuilderStandard';
 import AssessmentBuilderAdaptive from './pages/hr/AssessmentBuilderAdaptive';
@@ -17,6 +16,7 @@ import AssessmentBuilderPDF from './pages/hr/AssessmentBuilderPDF';
 import AssessmentDetail from './pages/hr/AssessmentDetail';
 import Analytics from './pages/hr/Analytics';
 import Notes from './pages/hr/Notes';
+import Questions from './pages/hr/Questions';
 import AccessPage from './pages/candidate/AccessPage';
 import StartPage from './pages/candidate/StartPage';
 import AssessmentRunner from './pages/candidate/AssessmentRunner';
@@ -39,6 +39,7 @@ export default function App() {
             <Route path="candidates/:id/assessment-review" element={<AssessmentReview />} />
             <Route path="roles" element={<Roles />} />
             <Route path="questions" element={<Questions />} />
+            <Route path="assessments" element={<Navigate to="/hr/assessments/create" replace />} />
             <Route path="assessments/create" element={<CreateAssessment />} />
             <Route path="assessments/create/standard" element={<AssessmentBuilderStandard />} />
             <Route path="assessments/create/adaptive" element={<AssessmentBuilderAdaptive />} />
@@ -59,7 +60,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-      <Toaster position="top-right" toastOptions={{
+      <Toaster position="top-center" toastOptions={{
         duration: 3000,
         style: { background: '#0f172a', color: '#fff', borderRadius: 10, padding: '12px 16px', fontSize: 14 },
         success: { iconTheme: { primary: '#16a34a', secondary: '#fff' } },

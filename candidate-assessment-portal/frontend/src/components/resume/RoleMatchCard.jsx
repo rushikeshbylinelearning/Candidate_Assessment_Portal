@@ -1,9 +1,63 @@
 import React from 'react';
-import { Target, Info, ExternalLink, FileText } from 'lucide-react';
+import { Target, Info, ExternalLink, FileText, Loader } from 'lucide-react';
 import './RoleMatchCard.css';
 
-export default function RoleMatchCard({ matchData }) {
-  // If no matchData, show empty state
+const MATCH_CONFIG = {
+  LOW: {
+    ring: '#EF4444',
+    label: '#EF4444',
+    bg: '#FEF2F2',
+    text: 'LOW MATCH',
+    bannerBg: '#FEF2F2',
+    bannerBorder: '#EF4444',
+    bannerColor: '#991B1B',
+    bannerText: 'Significant skill gaps identified. Additional training or experience may be required.',
+  },
+  MEDIUM: {
+    ring: '#F59E0B',
+    label: '#92400E',
+    bg: '#FFFBEB',
+    text: 'MODERATE MATCH',
+    bannerBg: '#FEF2F2',
+    bannerBorder: '#EF4444',
+    bannerColor: '#991B1B',
+    bannerText: 'Significant skill gaps identified. Additional training or experience may be required.',
+  },
+  HIGH: {
+    ring: '#10B981',
+    label: '#065F46',
+    bg: '#ECFDF5',
+    text: 'STRONG MATCH',
+    bannerBg: '#ECFDF5',
+    bannerBorder: '#10B981',
+    bannerColor: '#065F46',
+    bannerText: 'Strong skill match. Candidate meets most requirements.',
+  },
+  EXCELLENT: {
+    ring: '#8B5CF6',
+    label: '#5B21B6',
+    bg: '#F5F3FF',
+    text: 'EXCELLENT MATCH',
+    bannerBg: '#F5F3FF',
+    bannerBorder: '#8B5CF6',
+    bannerColor: '#5B21B6',
+    bannerText: 'Excellent match. Candidate meets all role requirements.',
+  },
+};
+
+export default function RoleMatchCard({ matchData, isAnalysing }) {
+  // Analysing state — resume just uploaded, skill match computing
+  if (isAnalysing) {
+    return (
+      <div className="rmc-card rmc-empty">
+        <Loader size={28} className="rmc-spinner" />
+        <p className="rmc-empty-title">Analysing resume...</p>
+        <p className="rmc-empty-sub">Computing skill match against role requirements.</p>
+      </div>
+    );
+  }
+
+  // No resume uploaded yet
   if (!matchData) {
     return (
       <div className="rmc-card rmc-empty">
@@ -14,27 +68,18 @@ export default function RoleMatchCard({ matchData }) {
     );
   }
 
-  const percentage = matchData?.matchPercentage ?? 0;
-  const matchedSkills = matchData?.matchedSkills ?? [];
-  const missingSkills = matchData?.missingSkills || [];
-  const partialMatch = matchData?.partialMatch ?? [];
+  const percentage = matchData.matchPercentage ?? 0;
+  const matchLabel = matchData.matchLabel || (
+    percentage >= 90 ? 'EXCELLENT' :
+    percentage >= 70 ? 'HIGH' :
+    percentage >= 40 ? 'MEDIUM' : 'LOW'
+  );
 
-  const matchedCount = matchedSkills.length;
-  const missingCount = missingSkills.length;
-  const partialCount = partialMatch.length;
+  const config = MATCH_CONFIG[matchLabel] || MATCH_CONFIG.LOW;
 
-  const getLabel = (pct) => {
-    if (pct >= 80) return 'EXCELLENT MATCH';
-    if (pct >= 60) return 'GOOD MATCH';
-    if (pct >= 40) return 'MODERATE MATCH';
-    return 'LOW MATCH';
-  };
-
-  const getInsightText = (pct) => {
-    if (pct >= 80) return 'Candidate has excellent match for this role.';
-    if (pct >= 60) return 'Candidate has good match for this role.';
-    return 'Significant skill gaps identified for this role.';
-  };
+  const matchedSkills = matchData.matchedSkills || [];
+  const missingSkills = matchData.missingSkills || [];
+  const partialSkills = matchData.partialSkills || [];
 
   // SVG circle progress
   const radius = 52;
@@ -51,10 +96,6 @@ export default function RoleMatchCard({ matchData }) {
           </div>
           <h3 className="rmc-title">Role Match Analysis</h3>
         </div>
-        <button className="rmc-view-btn">
-          View Details
-          <ExternalLink size={12} />
-        </button>
       </div>
 
       {/* Body: circle + insights */}
@@ -63,21 +104,14 @@ export default function RoleMatchCard({ matchData }) {
         <div className="rmc-circle-container">
           <svg width="120" height="120" className="rmc-svg">
             {/* Background ring */}
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              fill="none"
-              stroke="#E5E7EB"
-              strokeWidth="8"
-            />
+            <circle cx="60" cy="60" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="8" />
             {/* Progress ring */}
             <circle
               cx="60"
               cy="60"
               r={radius}
               fill="none"
-              stroke="#3B82F6"
+              stroke={config.ring}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={circumference}
@@ -86,37 +120,36 @@ export default function RoleMatchCard({ matchData }) {
               className="rmc-progress-ring"
             />
           </svg>
-          <div className="rmc-circle-text">
-            <span className="rmc-percent">{percentage}%</span>
-            <span className="rmc-good-label">{getLabel(percentage)}</span>
+          <div className="rmc-circle-text" style={{ background: config.bg, borderRadius: '50%' }}>
+            <span className="rmc-percent" style={{ color: config.ring }}>{percentage}%</span>
+            <span className="rmc-good-label" style={{ color: config.label }}>{config.text}</span>
           </div>
         </div>
 
         {/* Insights */}
         <div className="rmc-insights">
           <p className="rmc-insights-title">Matching Insights</p>
-          <p className="rmc-insights-sub">{getInsightText(percentage)}</p>
           <div className="rmc-stats-row">
             <div className="rmc-stat-col">
               <div className="rmc-stat-label">
                 <span className="rmc-dot green" />
-                Matched Skills
+                Matched
               </div>
-              <span className="rmc-stat-num">{matchedCount}</span>
+              <span className="rmc-stat-num">{matchedSkills.length}</span>
             </div>
             <div className="rmc-stat-col">
               <div className="rmc-stat-label">
                 <span className="rmc-dot red" />
-                Missing Skills
+                Missing
               </div>
-              <span className="rmc-stat-num">{missingCount}</span>
+              <span className="rmc-stat-num">{missingSkills.length}</span>
             </div>
             <div className="rmc-stat-col">
               <div className="rmc-stat-label">
                 <span className="rmc-dot orange" />
-                Partial Match
+                Partial
               </div>
-              <span className="rmc-stat-num">{partialCount}</span>
+              <span className="rmc-stat-num">{partialSkills.length}</span>
             </div>
           </div>
         </div>
@@ -134,14 +167,29 @@ export default function RoleMatchCard({ matchData }) {
         </div>
       )}
 
-      {/* Info Banner */}
-      <div className="rmc-info-banner">
-        <Info size={14} />
-        <span>
-          {percentage < 70
-            ? 'Significant skill gaps identified. Additional training or experience may be required.'
-            : 'Strong candidate profile. Recommend proceeding to next round.'}
-        </span>
+      {/* Matched Skills Tags */}
+      {matchedSkills.length > 0 && (
+        <div className="rmc-matched-row">
+          <p className="rmc-matched-label">Matched Skills ({matchedSkills.length})</p>
+          <div className="rmc-matched-tags">
+            {matchedSkills.map((skill, idx) => (
+              <span key={idx} className="rmc-matched-tag">{skill}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Insight Banner */}
+      <div
+        className="rmc-info-banner"
+        style={{
+          background: config.bannerBg,
+          borderLeft: `4px solid ${config.bannerBorder}`,
+          color: config.bannerColor,
+        }}
+      >
+        <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span>{config.bannerText}</span>
       </div>
     </div>
   );

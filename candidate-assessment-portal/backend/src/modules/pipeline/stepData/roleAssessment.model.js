@@ -34,8 +34,15 @@ const roleAssessmentDataSchema = new mongoose.Schema({
     ref: 'Assessment',
   },
   responses: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Response',
+    questionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Question',
+      required: true,
+    },
+    answer: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
   }],
   sectionScores: {
     aptitude: { type: Number },

@@ -131,8 +131,9 @@
 
 /* Modal */
 .question-modal-overlay {
-  @apply fixed inset-0 flex items-center justify-center z-50 p-6 overflow-y-auto;
+  @apply fixed inset-0 flex items-center justify-center p-6 overflow-y-auto;
   background: rgba(0, 0, 0, 0.5);
+  z-index: 300;
 }
 
 .question-modal-content {

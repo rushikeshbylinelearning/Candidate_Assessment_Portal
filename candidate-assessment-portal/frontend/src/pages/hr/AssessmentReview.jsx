@@ -5,6 +5,7 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import { ArrowLeft, CheckCircle, XCircle, Clock, MessageSquare, Code, Lightbulb, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PageShell from '../../components/layout/PageShell';
 
 const TYPE_LABEL = {
   mcq_single: 'MCQ',
@@ -256,14 +257,15 @@ export default function AssessmentReview() {
   };
 
   if (loading) return (
-    <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Loading assessment review...</div>
+    <PageShell><div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Loading assessment review...</div></PageShell>
   );
 
   if (!candidate) return (
-    <div style={{ padding: 40, textAlign: 'center', color: '#e11d48' }}>Candidate not found</div>
+    <PageShell><div style={{ padding: 40, textAlign: 'center', color: '#e11d48' }}>Candidate not found</div></PageShell>
   );
 
   return (
+    <PageShell scrollable>
     <div>
       {/* Back nav */}
       <button onClick={() => navigate(`/hr/candidates/${id}`)} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, marginBottom: 20 }}>
@@ -353,5 +355,6 @@ export default function AssessmentReview() {
         </div>
       )}
     </div>
+    </PageShell>
   );
 }

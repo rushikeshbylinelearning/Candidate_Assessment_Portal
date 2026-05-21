@@ -5,6 +5,7 @@ import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import { ArrowLeft, Zap, Plus, Trash2, Info } from "lucide-react";
 import toast from "react-hot-toast";
+import PageShell from "../../components/layout/PageShell";
 
 const CAT_COLORS = {
   aptitude:      "#2563eb",
@@ -50,7 +51,7 @@ export default function AssessmentBuilderAdaptive() {
     try {
       await api.post("/assessments", { ...form, totalQuestions, sections, mode: "adaptive" });
       toast.success("Assessment created!");
-      navigate("/hr/questions");
+      navigate("/hr/assessments/create");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed");
     } finally {
@@ -59,10 +60,9 @@ export default function AssessmentBuilderAdaptive() {
   };
 
   return (
+    <PageShell scrollable>
     <div>
-      <button onClick={() => navigate("/hr/assessments/create")} style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748b", background: "none", border: "none", cursor: "pointer", fontSize: 14, marginBottom: 24 }}>
-        <ArrowLeft size={16} /> Back to Mode Selection
-      </button>
+
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
         <div style={{ width: 44, height: 44, borderRadius: 12, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Zap size={22} color="#2563eb" />
@@ -206,5 +206,6 @@ export default function AssessmentBuilderAdaptive() {
         </div>
       </form>
     </div>
+    </PageShell>
   );
 }

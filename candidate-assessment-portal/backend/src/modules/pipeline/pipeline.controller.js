@@ -70,6 +70,12 @@ const createSession = async (req, res) => {
       }
     }
 
+    // Fetch candidate name and role title to expose to the frontend
+    const [candidateDoc, roleDoc] = await Promise.all([
+      Candidate.findById(pipeline.candidateId).select('name').lean(),
+      Role.findById(pipeline.roleId).select('title').lean(),
+    ]);
+
     return res.status(200).json({
       pipelineId: pipeline._id,
       _id: pipeline._id,
@@ -80,6 +86,8 @@ const createSession = async (req, res) => {
       partialData: currentStepData,
       stepConfig,
       remainingTime,
+      candidate: { name: candidateDoc?.name || null },
+      role: { title: roleDoc?.title || null },
     });
   } catch (error) {
     console.error('Error creating session:', error);
@@ -210,14 +218,24 @@ const resumePipeline = async (req, res) => {
     // Resume session
     const sessionData = await resumeSession(pipeline);
 
+    // Fetch candidate name and role title
+    const [candidateDoc, roleDoc] = await Promise.all([
+      Candidate.findById(pipeline.candidateId).select('name').lean(),
+      Role.findById(pipeline.roleId).select('title').lean(),
+    ]);
+
     return res.status(200).json({
       pipelineId: pipeline._id,
+      _id: pipeline._id,
       currentStep: sessionData.currentStep,
       partialData: sessionData.partialData,
       remainingTime: sessionData.remainingTime,
       stepConfig: sessionData.stepConfig,
       stepStatus: pipeline.stepStatus,
       completedSteps: pipeline.completedSteps,
+      stepConfigSnapshot: pipeline.stepConfigSnapshot,
+      candidate: { name: candidateDoc?.name || null },
+      role: { title: roleDoc?.title || null },
     });
   } catch (error) {
     console.error('Error resuming pipeline:', error);
@@ -971,6 +989,232 @@ const createRmsSession = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/pipeline/assigned-assessments
+ * Returns the list of assessments assigned to the candidate's pipeline steps.
+ * Candidate-facing route (Token Auth via x-pipeline-token header)
+ */
+const getAssignedAssessments = async (req, res) => {
+  try {
+    const pipeline = req.pipeline;
+
+    const Assessment = require('../assessment/assessment.model');
+
+    // Only return steps that have an explicitly assigned assessment
+    const assignedAssessmentsMap = pipeline.assignedAssessments;
+
+    // Collect only step types that have an assigned assessment
+    const assignedStepTypes = [];
+    if (assignedAssessmentsMap) {
+      const entries = assignedAssessmentsMap instanceof Map
+        ? Array.from(assignedAssessmentsMap.entries())
+        : Object.entries(assignedAssessmentsMap);
+      for (const [stepType, asmId] of entries) {
+        if (asmId) assignedStepTypes.push(stepType);
+      }
+    }
+
+    const assessments = [];
+
+    for (const stepType of assignedStepTypes) {
+      const stepStatus = pipeline.stepStatus[stepType] || {};
+      const stepConfig = (pipeline.stepConfigSnapshot || []).find(s => s.stepType === stepType);
+
+      // Map pipeline step status to simplified status
+      let status = 'pending';
+      if (stepStatus.status === 'IN_PROGRESS') status = 'in-progress';
+      else if (stepStatus.status === 'COMPLETED' || stepStatus.status === 'SKIPPED') status = 'completed';
+
+      const assignedAssessmentId = assignedAssessmentsMap instanceof Map
+        ? assignedAssessmentsMap.get(stepType)
+        : (assignedAssessmentsMap || {})[stepType];
+
+      let title = stepType;
+      let duration = stepConfig?.timeLimitMins ? `${stepConfig.timeLimitMins} mins` : null;
+      let skills = [];
+      let assessmentId = null;
+
+      try {
+        const assessment = await Assessment.findById(assignedAssessmentId).populate('roleId', 'title');
+        if (assessment) {
+          title = assessment.title;
+          duration = duration || (assessment.duration ? `${assessment.duration} mins` : 'N/A');
+          skills = (assessment.sections || []).map(s => s.name || s.category).filter(Boolean);
+          assessmentId = assessment._id;
+        }
+      } catch (_) { /* ignore lookup errors */ }
+
+      assessments.push({
+        id: assessmentId || stepType,
+        stepType,
+        title,
+        status,
+        duration: duration || 'N/A',
+        skills,
+        score: stepStatus.score ?? null,
+        startedAt: stepStatus.startedAt || null,
+        completedAt: stepStatus.completedAt || null,
+        timeLimitMins: stepConfig?.timeLimitMins || null,
+        required: stepConfig?.required !== false,
+      });
+    }
+
+    return res.status(200).json({ assessments });
+  } catch (error) {
+    console.error('Error fetching assigned assessments:', error);
+    return res.status(500).json({
+      error: 'SERVER_ERROR',
+      message: 'Failed to fetch assigned assessments',
+    });
+  }
+};
+
+/**
+ * GET /api/pipeline/assessment/:assessmentId/questions
+ * Fetch questions for an assigned assessment (candidate-facing, pipeline token auth)
+ * Verifies the assessment is actually assigned to this candidate's pipeline before serving questions.
+ */
+const getAssessmentQuestions = async (req, res) => {
+  try {
+    const { assessmentId } = req.params;
+    const pipeline = req.pipeline;
+
+    const Assessment = require('../assessment/assessment.model');
+    const Question = require('../question/question.model');
+
+    // Verify this assessment is actually assigned to this pipeline
+    const assignedMap = pipeline.assignedAssessments;
+    let isAssigned = false;
+    if (assignedMap) {
+      const entries = assignedMap instanceof Map
+        ? Array.from(assignedMap.values())
+        : Object.values(assignedMap);
+      isAssigned = entries.some(id => id && id.toString() === assessmentId);
+    }
+
+    if (!isAssigned) {
+      return res.status(403).json({
+        error: 'ACCESS_DENIED',
+        message: 'This assessment is not assigned to your pipeline',
+      });
+    }
+
+    // Fetch assessment with selectedQuestions populated
+    const assessment = await Assessment.findById(assessmentId)
+      .populate('roleId', 'title')
+      .populate({ path: 'selectedQuestions', select: '-correctAnswer -explanation' });
+
+    if (!assessment) {
+      return res.status(404).json({ error: 'NOT_FOUND', message: 'Assessment not found' });
+    }
+
+    let questions = assessment.selectedQuestions || [];
+
+    // Fallback: if no selectedQuestions, fetch by role + sections
+    if (questions.length === 0 && assessment.sections && assessment.sections.length > 0) {
+      for (const section of assessment.sections) {
+        const sectionQs = await Question.find({
+          category: section.category,
+          difficulty: section.difficulty === 'mixed'
+            ? { $in: ['easy', 'medium', 'hard'] }
+            : section.difficulty,
+          active: true,
+        })
+          .select('-correctAnswer -explanation')
+          .limit(section.questionCount * 3);
+
+        let picked = assessment.randomizeQuestions
+          ? sectionQs.sort(() => Math.random() - 0.5).slice(0, section.questionCount)
+          : sectionQs.slice(0, section.questionCount);
+
+        if (assessment.randomizeOptions) {
+          picked = picked.map(q => {
+            const obj = q.toObject();
+            if (obj.options && obj.options.length > 0) {
+              obj.options = obj.options.sort(() => Math.random() - 0.5);
+            }
+            return obj;
+          });
+        }
+        questions.push(...picked);
+      }
+    }
+
+    // Randomize question order if enabled
+    if (assessment.randomizeQuestions && questions.length > 0) {
+      questions = [...questions].sort(() => Math.random() - 0.5);
+    }
+
+    return res.status(200).json({
+      assessment: {
+        _id: assessment._id,
+        title: assessment.title,
+        description: assessment.description,
+        duration: assessment.duration,
+        totalQuestions: assessment.totalQuestions || questions.length,
+        allowBacktrack: assessment.allowBacktrack,
+        passThreshold: assessment.passThreshold,
+        sections: assessment.sections,
+      },
+      questions,
+    });
+  } catch (error) {
+    console.error('Error fetching assessment questions:', error);
+    return res.status(500).json({
+      error: 'SERVER_ERROR',
+      message: 'Failed to fetch assessment questions',
+    });
+  }
+};
+
+/**
+ * POST /api/pipeline/:pipelineId/recompute-scores
+ * Recompute and backfill scores for a completed pipeline (HR-facing).
+ * Useful for pipelines completed before the scoring fix was deployed.
+ */
+const recomputePipelineScores = async (req, res) => {
+  try {
+    const { pipelineId } = req.params;
+    const { computeRoleAssessmentScore } = require('./workflowEngine.service');
+    const { computeAggregateScore } = require('./scoring.service');
+
+    const pipeline = await PipelineRecord.findById(pipelineId);
+    if (!pipeline) {
+      return res.status(404).json({ error: 'PIPELINE_NOT_FOUND', message: 'Pipeline not found' });
+    }
+
+    const results = {};
+
+    // Recompute score for ROLE_BASED_ASSESSMENT if it was completed
+    const roleStepStatus = pipeline.stepStatus['ROLE_BASED_ASSESSMENT'];
+    if (roleStepStatus && roleStepStatus.status === 'COMPLETED' && roleStepStatus.dataRef) {
+      const RoleAssessmentData = STEP_DATA_MODELS['ROLE_BASED_ASSESSMENT'];
+      const stepData = await RoleAssessmentData.findById(roleStepStatus.dataRef);
+      if (stepData) {
+        const score = await computeRoleAssessmentScore(stepData);
+        await stepData.save();
+        if (score !== null) {
+          roleStepStatus.score = score;
+        }
+        results.ROLE_BASED_ASSESSMENT = { score, sectionScores: stepData.sectionScores };
+      }
+    }
+
+    await pipeline.save();
+
+    // Recompute aggregate score
+    if (pipeline.status === 'FINISHED') {
+      const aggregateScore = await computeAggregateScore(pipeline);
+      results.aggregateScore = aggregateScore;
+    }
+
+    return res.status(200).json({ message: 'Scores recomputed successfully', results });
+  } catch (error) {
+    console.error('Error recomputing pipeline scores:', error);
+    return res.status(500).json({ error: 'SERVER_ERROR', message: 'Failed to recompute scores' });
+  }
+};
+
 module.exports = {
   createSession,
   saveStep,
@@ -986,4 +1230,7 @@ module.exports = {
   updateStepConfiguration,
   getStepConfiguration,
   createRmsSession,
+  getAssignedAssessments,
+  getAssessmentQuestions,
+  recomputePipelineScores,
 };

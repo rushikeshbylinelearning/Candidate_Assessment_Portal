@@ -15,6 +15,7 @@ const assessmentSchema = new mongoose.Schema({
   duration: { type: Number, required: true }, // minutes
   totalQuestions: { type: Number, required: true },
   sections: [sectionSchema],
+  selectedQuestions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Question' }],
   randomizeQuestions: { type: Boolean, default: true },
   randomizeOptions: { type: Boolean, default: true },
   allowBacktrack: { type: Boolean, default: true },

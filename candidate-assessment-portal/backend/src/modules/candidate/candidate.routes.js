@@ -7,10 +7,12 @@ router.use(protect);
 router.get('/', ctrl.getCandidates);
 router.get('/:id', ctrl.getCandidate);
 router.get('/:id/timeline', ctrl.getTimeline);
+router.get('/:id/assigned-assessments', authorize('admin', 'hr'), ctrl.getAssignedAssessments);
 router.post('/', authorize('admin', 'hr'), upload.single('resume'), ctrl.createCandidate);
 router.put('/:id', authorize('admin', 'hr'), upload.single('resume'), ctrl.updateCandidate);
 router.delete('/:id', authorize('admin', 'hr'), ctrl.deleteCandidate);
 router.put('/:id/status', authorize('admin', 'hr', 'interviewer'), ctrl.updateStatus);
 router.post('/:id/invite', authorize('admin', 'hr'), ctrl.inviteCandidate);
+router.post('/:id/remove-assessment', authorize('admin', 'hr'), ctrl.removeAssessment);
 
 module.exports = router;

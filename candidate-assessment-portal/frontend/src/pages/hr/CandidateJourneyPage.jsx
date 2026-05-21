@@ -4,6 +4,7 @@ import StepStatusOverview from '../../components/pipeline/hr/StepStatusOverview'
 import OverrideControls from '../../components/pipeline/hr/OverrideControls';
 import AggregateSummary from '../../components/pipeline/hr/AggregateSummary';
 import StepDataViewer from '../../components/pipeline/hr/StepDataViewer';
+import PageShell from '../../components/layout/PageShell';
 
 export default function CandidateJourneyPage() {
   const { pipelineId } = useParams();
@@ -44,19 +45,16 @@ export default function CandidateJourneyPage() {
   const stepTypes = pipelineRecord?.stepConfigSnapshot?.map((s) => s.stepType || s.type) || [];
 
   if (loading) {
-    return <div style={pageStyle}><p style={{ color: '#64748b' }}>Loading pipeline...</p></div>;
+    return <PageShell><p style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Loading pipeline...</p></PageShell>;
   }
 
   if (error) {
-    return <div style={pageStyle}><p style={{ color: '#ef4444' }}>{error}</p></div>;
+    return <PageShell><p style={{ padding: 40, textAlign: 'center', color: '#ef4444' }}>{error}</p></PageShell>;
   }
 
   return (
-    <div style={pageStyle}>
-      <h2 style={{ margin: '0 0 24px', fontSize: 22, fontWeight: 700, color: '#0f172a' }}>
-        Candidate Journey
-      </h2>
-
+    <PageShell title="Candidate Journey" scrollable>
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <section style={sectionStyle}>
         <StepStatusOverview pipelineRecord={pipelineRecord} />
       </section>
@@ -99,14 +97,9 @@ export default function CandidateJourneyPage() {
         <StepDataViewer pipelineId={pipelineId} stepType={selectedStep} />
       </section>
     </div>
+    </PageShell>
   );
 }
-
-const pageStyle = {
-  maxWidth: 900,
-  margin: '0 auto',
-  padding: '32px 24px',
-};
 
 const sectionStyle = {
   marginBottom: 24,

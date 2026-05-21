@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
+import PageShell from '../../components/layout/PageShell';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -316,21 +317,9 @@ export default function AssessmentBuilderPDF() {
   // ── Render ──
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px' }}>
+    <PageShell scrollable>
+    <div style={{ maxWidth: 860, margin: '0 auto' }}>
 
-        {/* Back */}
-        <button
-          onClick={() => step > 0 ? setStep(s => s - 1) : navigate('/hr/assessments/create')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            color: '#64748b', background: 'none', border: 'none',
-            cursor: 'pointer', fontSize: 14, marginBottom: 32, padding: '6px 0',
-          }}
-        >
-          <ArrowLeft size={16} />
-          {step > 0 ? 'Back' : 'Back to Create Assessment'}
-        </button>
 
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
@@ -661,6 +650,6 @@ export default function AssessmentBuilderPDF() {
         )}
 
       </div>
-    </div>
+    </PageShell>
   );
 }

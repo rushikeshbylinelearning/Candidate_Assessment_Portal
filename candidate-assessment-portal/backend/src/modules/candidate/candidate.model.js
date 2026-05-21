@@ -7,6 +7,15 @@ const timelineEventSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 }, { _id: false });
 
+const skillMatchResultSchema = new mongoose.Schema({
+  matchedSkills: [String],
+  missingSkills: [String],
+  partialSkills: [String],
+  matchPercentage: { type: Number, default: 0 },
+  matchLabel: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH', 'EXCELLENT'], default: 'LOW' },
+  computedAt: { type: Date, default: Date.now },
+}, { _id: false });
+
 const candidateSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, lowercase: true, trim: true },
@@ -40,6 +49,7 @@ const candidateSchema = new mongoose.Schema({
   notesSummary: { type: String },
   riskFlags: [String],
   addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  skillMatchResult: { type: skillMatchResultSchema, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Candidate', candidateSchema);

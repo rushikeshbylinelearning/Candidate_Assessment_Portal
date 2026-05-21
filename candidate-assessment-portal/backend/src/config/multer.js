@@ -20,18 +20,12 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter - only allow PDF and Word documents
+// File filter - PDF only (Gemini parsing requires text-based PDFs)
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ];
-  
-  if (allowedTypes.includes(file.mimetype)) {
+  if (file.mimetype === 'application/pdf') {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF and Word documents are allowed'), false);
+    cb(new Error('Only PDF files are accepted. Please upload a text-based PDF resume.'), false);
   }
 };
 

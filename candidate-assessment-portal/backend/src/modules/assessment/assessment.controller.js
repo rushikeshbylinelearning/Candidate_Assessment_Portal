@@ -11,9 +11,32 @@ exports.getAssessments = async (req, res) => {
 };
 
 exports.getAssessment = async (req, res) => {
-  const assessment = await Assessment.findById(req.params.id).populate('roleId');
+  const assessment = await Assessment.findById(req.params.id)
+    .populate('roleId')
+    .populate('selectedQuestions');
   if (!assessment) return res.status(404).json({ message: 'Assessment not found' });
-  res.json(assessment);
+
+  // Check if assessment is assigned to any candidates
+  const PipelineRecord = require('../pipeline/pipeline.model');
+  const pipelines = await PipelineRecord.find({});
+  const isAssigned = pipelines.some(p => {
+    const assessments = p.assignedAssessments || new Map();
+    return Array.from(assessments.values()).some(id => id.toString() === req.params.id);
+  });
+
+  // If no selectedQuestions stored, fall back to fetching by roleId
+  if (!assessment.selectedQuestions || assessment.selectedQuestions.length === 0) {
+    const Question = require('../question/question.model');
+    const questions = await Question.find({ roles: assessment.roleId?._id, active: true }).sort('createdAt');
+    const obj = assessment.toObject();
+    obj.selectedQuestions = questions;
+    obj.isAssigned = isAssigned;
+    return res.json(obj);
+  }
+
+  const obj = assessment.toObject();
+  obj.isAssigned = isAssigned;
+  res.json(obj);
 };
 
 exports.createAssessment = async (req, res) => {
@@ -27,12 +50,56 @@ exports.createAssessment = async (req, res) => {
 };
 
 exports.updateAssessment = async (req, res) => {
-  const assessment = await Assessment.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const assessment = await Assessment.findById(req.params.id);
   if (!assessment) return res.status(404).json({ message: 'Assessment not found' });
+
+  // Check if assessment is assigned to any candidates
+  const PipelineRecord = require('../pipeline/pipeline.model');
+  const assignedCount = await PipelineRecord.countDocuments({
+    'assignedAssessments': { $exists: true },
+    $expr: {
+      $gt: [
+        { $size: { $objectToArray: { $ifNull: ['$assignedAssessments', {}] } } },
+        0
+      ]
+    }
+  }).then(async () => {
+    // Check if this specific assessment is assigned
+    const pipelines = await PipelineRecord.find({});
+    return pipelines.filter(p => {
+      const assessments = p.assignedAssessments || new Map();
+      return Array.from(assessments.values()).some(id => id.toString() === req.params.id);
+    }).length;
+  });
+
+  if (assignedCount > 0) {
+    return res.status(403).json({ 
+      message: 'Cannot update assessment that has been assigned to candidates',
+      assignedCount 
+    });
+  }
+
+  // Update the assessment
+  Object.assign(assessment, req.body);
+  await assessment.save();
   res.json(assessment);
 };
 
 exports.deleteAssessment = async (req, res) => {
+  // Check if assessment is assigned to any candidates
+  const PipelineRecord = require('../pipeline/pipeline.model');
+  const pipelines = await PipelineRecord.find({});
+  const isAssigned = pipelines.some(p => {
+    const assessments = p.assignedAssessments || new Map();
+    return Array.from(assessments.values()).some(id => id.toString() === req.params.id);
+  });
+
+  if (isAssigned) {
+    return res.status(403).json({ 
+      message: 'Cannot delete assessment that has been assigned to candidates'
+    });
+  }
+
   const assessment = await Assessment.findByIdAndDelete(req.params.id);
   if (!assessment) return res.status(404).json({ message: 'Assessment not found' });
   await log({ userId: req.user._id, action: 'DELETE_ASSESSMENT', entity: 'assessment', entityId: req.params.id });

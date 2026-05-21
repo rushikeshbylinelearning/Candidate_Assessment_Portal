@@ -5,6 +5,7 @@ import Badge from '../../components/ui/Badge';
 import { MessageSquare, Star } from 'lucide-react';
 import '../../styles/Notes.css';
 import '../../styles/SquircleHeader.css';
+import PageShell from '../../components/layout/PageShell';
 
 export default function Notes() {
   const [logs, setLogs] = useState([]);
@@ -15,7 +16,8 @@ export default function Notes() {
   }, []);
 
   return (
-    <div>
+    <PageShell scrollable>
+      <div>
       {/* Squircle Header */}
       <div className="squircle-header">
         <div className="squircle-header-icon">
@@ -64,6 +66,7 @@ export default function Notes() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }

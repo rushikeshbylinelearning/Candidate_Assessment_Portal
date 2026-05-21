@@ -1,162 +1,377 @@
 /* Dashboard Page Styles */
-@import './SquircleHeader.css';
 
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ─── Animations ─────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Stats Grid */
+/* ─── Page wrapper — fills the PageShell body exactly ───── */
+.dashboard-page {
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;          /* tighter gap so everything fits */
+  height: 100%;       /* fill the scrollable body */
+  min-height: 0;
+}
+
+/* ─── Loading ────────────────────────────────────────────── */
+.dashboard-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #6B7280;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* ─── Header card ────────────────────────────────────────── */
+.dashboard-header-card {
+  background: linear-gradient(135deg, #0C1220 0%, #1E2A45 60%, #162035 100%);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 4px 16px rgba(12,18,32,0.18), 0 1px 4px rgba(12,18,32,0.12);
+  animation: fadeInUp 0.4s ease-out forwards;
+  border: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.dashboard-header-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(229, 56, 59, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #E5383B;
+}
+
+.dashboard-header-content h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+}
+
+.dashboard-header-content p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  font-weight: 400;
+}
+
+/* ─── Stats grid ─────────────────────────────────────────── */
 .stats-grid {
-  @apply grid gap-5 mb-6;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);  /* always 6 columns */
+  gap: 10px;
+  flex-shrink: 0;
 }
 
+/* ─── Stat card base ─────────────────────────────────────── */
 .stat-card {
-  @apply flex flex-col gap-3 p-5 rounded-xl border;
-  border-color: var(--color-border);
-  background: var(--color-background-primary);
-  animation: fadeIn 0.4s ease-out forwards;
+  background: #FFFFFF;
+  border: 1px solid #E4E7EC;
+  border-radius: 10px;
+  padding: 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  animation: fadeInUp 0.4s ease-out forwards;
   opacity: 0;
 }
 
+.stat-card:hover {
+  box-shadow: 0 4px 12px rgba(16,24,40,0.1), 0 2px 4px rgba(16,24,40,0.06);
+  transform: translateY(-1px);
+}
+
 .stat-icon {
-  @apply w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .stat-value {
-  @apply text-3xl font-medium leading-none mb-1.5;
-  color: var(--color-text-primary);
-  letter-spacing: -0.5px;
+  font-size: 26px;
+  font-weight: 700;
+  color: #1A1A2E;
+  line-height: 1;
 }
 
 .stat-label {
-  @apply text-sm;
-  color: var(--color-text-secondary);
+  font-size: 12px;
+  color: #6B7280;
   font-weight: 400;
 }
 
 .stat-sub {
-  @apply text-xs mt-1;
-  color: var(--color-text-tertiary);
+  display: inline-block;
+  font-size: 10px;
+  color: #92400E;
+  background: #FEF3C7;
+  border-radius: 4px;
+  padding: 1px 5px;
   font-weight: 400;
 }
 
-/* Charts Grid */
+.stat-sub-muted {
+  font-size: 10px;
+  color: #9CA3AF;
+  font-weight: 400;
+}
+
+/* ─── Charts grid — grows to fill remaining space ────────── */
 .charts-grid {
-  @apply grid gap-6 mb-6;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
 }
 
+/* ─── Chart card ─────────────────────────────────────────── */
 .chart-card {
-  @apply p-5 rounded-xl border;
-  border-color: var(--color-border);
-  animation: fadeIn 0.4s ease-out forwards;
+  background: #FFFFFF;
+  border: 1px solid #E4E7EC;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+  animation: fadeInUp 0.4s ease-out forwards;
   opacity: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
+/* ─── Card section header ────────────────────────────────── */
 .chart-header {
-  @apply flex items-center gap-2.5 mb-5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #EEF0F4;
+  flex-shrink: 0;
 }
 
 .chart-icon {
-  @apply w-8 h-8 rounded-lg flex items-center justify-center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .chart-title {
-  @apply text-base font-medium;
-  color: var(--color-text-primary);
-  letter-spacing: -0.2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1A1A2E;
+  margin: 0;
 }
 
-/* Funnel Progress Bars */
+/* ─── Hiring Funnel ──────────────────────────────────────── */
 .funnel-container {
-  @apply flex flex-col gap-4;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  justify-content: space-between;
+}
+
+.funnel-row {
+  padding: 6px 0;
+  border-bottom: 1px solid #F3F0ED;
+}
+
+.funnel-row:last-child {
+  border-bottom: none;
 }
 
 .funnel-item-header {
-  @apply flex justify-between mb-2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.funnel-label-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.funnel-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .funnel-stage {
-  @apply text-sm font-medium;
-  color: var(--color-text-secondary);
+  font-size: 12px;
+  color: #374151;
+  font-weight: 400;
 }
 
 .funnel-count {
-  @apply text-sm font-medium;
-  color: var(--color-text-primary);
+  font-size: 12px;
+  color: #6B7280;
+  font-weight: 400;
 }
 
 .funnel-percentage {
-  @apply text-xs;
-  color: var(--color-text-tertiary);
+  font-size: 11px;
+  color: #9CA3AF;
   font-weight: 400;
 }
 
 .funnel-bar {
-  @apply w-full h-1.5 rounded-full overflow-hidden relative;
-  background: var(--color-background-secondary);
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: #EEF0F4;
+  overflow: hidden;
 }
 
 .funnel-bar-fill {
-  @apply h-full rounded-full;
-  background: #F472B6;
+  height: 100%;
+  border-radius: 999px;
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Quick Actions */
-.quick-actions-card {
-  @apply p-5 rounded-xl border;
-  border-color: var(--color-border);
-  animation: fadeIn 0.4s ease-out forwards;
-  opacity: 0;
+/* ─── Skill Performance chart ────────────────────────────── */
+.chart-card .recharts-responsive-container {
+  flex: 1;
+  min-height: 0;
 }
 
-.quick-actions-title {
-  @apply text-xs font-medium mb-4 uppercase tracking-wider;
-  color: var(--color-text-secondary);
+/* ─── Skill Performance legend ───────────────────────────── */
+.skill-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #F3F0ED;
+  flex-shrink: 0;
 }
 
-.quick-actions-grid {
-  @apply flex gap-3 flex-wrap;
-}
-
-.quick-action-btn {
-  @apply flex items-center gap-2 h-9 px-3 rounded-lg border cursor-pointer transition-all;
-  border-color: var(--color-border);
-  background: var(--color-background-primary);
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  font-size: 13px;
-}
-
-.quick-action-btn:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-/* Loading State */
-.dashboard-loading {
-  @apply flex items-center justify-center;
-  height: 400px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
+.skill-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #6B7280;
   font-weight: 400;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  }
+.skill-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
+/* ─── Quick Actions card — compact ──────────────────────── */
+.quick-actions-card {
+  background: #FFFFFF;
+  border: 1px solid #E4E7EC;
+  border-radius: 12px;
+  padding: 12px 18px;          /* was 20px 24px */
+  box-shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 0;
+  flex-shrink: 0;
+}
+
+.quick-actions-title {
+  font-size: 10px;             /* was 11px */
+  font-weight: 600;
+  color: #9CA3AF;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 8px 0;          /* was 12px */
+}
+
+.quick-actions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;                    /* was 10px */
+}
+
+/* Primary action button */
+.quick-action-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #E5383B;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 14px;           /* was 10px 18px */
+  font-size: 12px;             /* was 13px */
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.quick-action-btn-primary:hover {
+  background: #C5282B;
+}
+
+/* Secondary action buttons */
+.quick-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFFFF;
+  color: #1A1A2E;
+  border: 1px solid #E8E4DF;
+  border-radius: 7px;
+  padding: 7px 14px;           /* was 10px 18px */
+  font-size: 12px;             /* was 13px */
+  font-weight: 400;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.quick-action-btn:hover {
+  background: #F7F4F1;
+  border-color: #D1C9C0;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
   .charts-grid {
     grid-template-columns: 1fr;
   }

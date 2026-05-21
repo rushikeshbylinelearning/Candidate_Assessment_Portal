@@ -30,22 +30,23 @@ exports.getSession = async (req, res) => {
   const assessment = token.assessmentId;
   let questions = [];
 
-  for (const section of assessment.sections) {
-    const sectionQuestions = await Question.find({
-      category: section.category,
-      difficulty: section.difficulty === 'mixed' ? { $in: ['easy', 'medium', 'hard'] } : section.difficulty,
+  // CRITICAL FIX: Use selectedQuestions if available (manually curated assessments)
+  if (assessment.selectedQuestions && assessment.selectedQuestions.length > 0) {
+    console.log(`[getSession] Using ${assessment.selectedQuestions.length} pre-selected questions for assessment ${assessment._id}`);
+    
+    // Fetch the exact questions that were selected for this assessment
+    questions = await Question.find({
+      _id: { $in: assessment.selectedQuestions },
       active: true,
-    }).select('-correctAnswer -explanation').limit(section.questionCount * 3);
-
-    let picked = sectionQuestions;
+    }).select('-correctAnswer -explanation');
+    
+    // Apply randomization if enabled
     if (assessment.randomizeQuestions) {
-      picked = sectionQuestions.sort(() => Math.random() - 0.5).slice(0, section.questionCount);
-    } else {
-      picked = sectionQuestions.slice(0, section.questionCount);
+      questions = questions.sort(() => Math.random() - 0.5);
     }
-
+    
     if (assessment.randomizeOptions) {
-      picked = picked.map(q => {
+      questions = questions.map(q => {
         const qObj = q.toObject();
         if (qObj.options && qObj.options.length > 0) {
           qObj.options = qObj.options.sort(() => Math.random() - 0.5);
@@ -53,8 +54,47 @@ exports.getSession = async (req, res) => {
         return qObj;
       });
     }
-    questions.push(...picked);
+  } else {
+    // FALLBACK: Use section-based dynamic selection (for auto-generated assessments)
+    console.log(`[getSession] No selectedQuestions found, using section-based selection for assessment ${assessment._id}`);
+    
+    for (const section of assessment.sections) {
+      const sectionQuestions = await Question.find({
+        category: section.category,
+        difficulty: section.difficulty === 'mixed' ? { $in: ['easy', 'medium', 'hard'] } : section.difficulty,
+        active: true,
+      }).select('-correctAnswer -explanation').limit(section.questionCount * 3);
+
+      let picked = sectionQuestions;
+      if (assessment.randomizeQuestions) {
+        picked = sectionQuestions.sort(() => Math.random() - 0.5).slice(0, section.questionCount);
+      } else {
+        picked = sectionQuestions.slice(0, section.questionCount);
+      }
+
+      if (assessment.randomizeOptions) {
+        picked = picked.map(q => {
+          const qObj = q.toObject();
+          if (qObj.options && qObj.options.length > 0) {
+            qObj.options = qObj.options.sort(() => Math.random() - 0.5);
+          }
+          return qObj;
+        });
+      }
+      questions.push(...picked);
+    }
   }
+
+  // VALIDATION: Ensure we have questions
+  if (questions.length === 0) {
+    console.error(`[getSession] ERROR: No questions found for assessment ${assessment._id}`);
+    return res.status(500).json({ 
+      message: 'Assessment configuration error: No questions available. Please contact support.' 
+    });
+  }
+
+  console.log(`[getSession] Returning ${questions.length} questions for assessment "${assessment.title}"`);
+  console.log(`[getSession] Question types:`, questions.map(q => ({ id: q._id, type: q.type, text: q.text.substring(0, 50) })))
 
   // Recover existing answers
   const existingResponses = await Response.find({
@@ -196,16 +236,20 @@ exports.authenticateWithAccessCode = async (req, res) => {
     if (!pipeline) {
       const StepConfig = require('../pipeline/stepConfig.model');
       const stepConfig = await StepConfig.findOne({ roleId: candidate.appliedRole._id });
-      
-      if (!stepConfig || !stepConfig.steps || stepConfig.steps.length === 0) {
-        return res.status(400).json({ 
-          message: 'No evaluation pipeline configured for your role. Please contact HR.' 
-        });
-      }
-      
+
+      // Use role-specific step config if available, otherwise fall back to a sensible default
+      const defaultSteps = [
+        { stepType: 'ROLE_BASED_ASSESSMENT', order: 1, required: true, skip: false, scoringWeight: 60, timeLimitMins: 60 },
+        { stepType: 'LANGUAGE_ASSESSMENT',   order: 2, required: false, skip: true,  scoringWeight: 20, timeLimitMins: 30 },
+        { stepType: 'EVALUATION_FORM',        order: 3, required: false, skip: true,  scoringWeight: 20, timeLimitMins: null },
+      ];
+      const stepsToUse = (stepConfig && stepConfig.steps && stepConfig.steps.length > 0)
+        ? stepConfig.steps
+        : defaultSteps;
+
       // Build step status map
       const stepStatus = {};
-      stepConfig.steps.forEach(sc => {
+      stepsToUse.forEach(sc => {
         stepStatus[sc.stepType] = {
           status: 'NOT_STARTED',
           score: null,
@@ -218,8 +262,8 @@ exports.authenticateWithAccessCode = async (req, res) => {
       pipeline = await PipelineRecord.create({
         candidateId: candidate._id,
         roleId: candidate.appliedRole._id,
-        currentStep: stepConfig.steps[0].stepType,
-        stepConfigSnapshot: stepConfig.steps.map((s, i) => ({
+        currentStep: stepsToUse[0].stepType,
+        stepConfigSnapshot: stepsToUse.map((s, i) => ({
           stepType: s.stepType,
           order: s.order || i + 1,
           required: s.required,

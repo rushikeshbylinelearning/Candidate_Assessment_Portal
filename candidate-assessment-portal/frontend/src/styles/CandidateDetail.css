@@ -1,30 +1,50 @@
 /* ============================================
-   CANDIDATE DETAIL — PREMIUM UI
-   Matches HireOS reference design exactly
+   CANDIDATE DETAIL — FIXED LAYOUT SYSTEM
+   Works inside PageShell (noPad) + HRLayout
    ============================================ */
 
 :root {
-  --primary: #E11D48;
-  --primary-light: #FFF1F2;
-  --primary-mid: #FECDD3;
-  --bg: #F0F2F5;
+  /* Brand */
+  --primary: #E5383B;
+  --primary-light: #FEF2F2;
+  --primary-mid: #FECACA;
+  --primary-dark: #C81E21;
+
+  /* Page surfaces */
+  --bg: #F7F4F1;
   --card: #FFFFFF;
-  --border: #E5E7EB;
-  --border-light: #F3F4F6;
-  --text-primary: #111827;
+
+  /* Borders */
+  --border: #E8E4DF;
+  --border-light: #F0EDE9;
+
+  /* Text */
+  --text-heading: #1A1A2E;
+  --text-primary: #1A1A2E;
   --text-secondary: #374151;
   --text-muted: #6B7280;
   --text-faint: #9CA3AF;
+  --text-placeholder: #C4B9B0;
+
+  /* Accent colours */
   --blue: #3B82F6;
   --blue-light: #EFF6FF;
-  --green: #22C55E;
+  --green: #059669;
   --green-light: #F0FDF4;
+  --green-border: #D1FAE5;
   --orange: #F59E0B;
-  --orange-light: #FFFBEB;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+  --orange-light: #FFFBF0;
+  --orange-border: #FDE68A;
+  --red-soft: #FFF5F5;
+  --red-border: #FEE2E2;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+
+  /* Radii */
   --radius: 10px;
-  --radius-sm: 6px;
+  --radius-sm: 8px;
   --radius-lg: 12px;
 }
 
@@ -32,20 +52,30 @@
    PAGE WRAPPER
    ============================================ */
 
+/*
+ * PageShell(noPad) gives us a flex column that is height:100%, overflow:hidden.
+ * candidate-detail-page fills that space completely — no margin hacks needed.
+ */
 .candidate-detail-page {
   display: flex;
   flex-direction: column;
-  /* Pull out of the shell's 24px 28px padding so we fill edge-to-edge */
-  margin: -24px -28px;
-  /* Fill exactly the space below the topbar */
-  height: calc(100vh - var(--topbar-height));
-  overflow: hidden;
+  height: 100%;          /* fills PageShell body exactly */
+  overflow: hidden;      /* ❗ no page scroll */
   background: var(--bg);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
-  /* Re-apply padding inside the page itself */
-  padding: 24px 24px 0 24px;
+  padding: 16px 20px;
   box-sizing: border-box;
+}
+
+/* Loading / error states need full height too */
+.cd-loading,
+.cd-error {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
 }
 
 /* ============================================
@@ -57,19 +87,18 @@
   display: flex;
   flex-direction: row;
   flex: 1;
-  min-height: 0;        /* critical: lets flex children shrink below content height */
-  gap: 24px;
-  padding-bottom: 24px;
+  min-height: 0;        /* ❗ CRITICAL: lets flex children shrink below content height */
+  gap: 16px;
+  overflow: hidden;     /* clips children — scroll happens inside columns only */
   box-sizing: border-box;
-  overflow: hidden;     /* clips children — scroll happens inside column-right only */
 }
 
-/* LEFT COLUMN — Fixed width, does NOT scroll */
+/* LEFT COLUMN — wider, independent scroll */
 .column-left {
-  flex: 0 0 340px;
+  flex: 0 0 480px;  /* Increased from 340px to 480px */
   min-width: 0;
   height: 100%;
-  overflow: hidden;
+  overflow: hidden;     /* inner .resume-panel-scroll handles scroll */
   display: flex;
   flex-direction: column;
   background: var(--card);
@@ -78,39 +107,27 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* RIGHT COLUMN — Scrollable */
+/* RIGHT COLUMN — takes remaining width, ONLY this scrolls */
 .column-right {
   flex: 1 1 0;
-  min-width: 0;
+  min-width: 0;         /* ❗ CRITICAL: prevents overflow bugs in flex */
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-  padding: 0 0 24px 0;
+  background: transparent;
   scroll-behavior: smooth;
 }
 
-.column-right::-webkit-scrollbar {
-  width: 5px;
-}
-.column-right::-webkit-scrollbar-track {
-  background: transparent;
-}
-.column-right::-webkit-scrollbar-thumb {
-  background: #D1D5DB;
-  border-radius: 10px;
-}
+.column-right::-webkit-scrollbar { width: 5px; }
+.column-right::-webkit-scrollbar-track { background: transparent; }
+.column-right::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
 
 .evaluation-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 100%;
+  gap: 14px;
   width: 100%;
-  padding: 24px 24px 24px;
+  padding: 0 0 24px 0;
   box-sizing: border-box;
 }
 
@@ -125,120 +142,145 @@
   overflow: hidden;
 }
 
-/* Candidate Header Card */
-.candidate-header-card {
+/* ── Profile Header — dark violet background ── */
+.cd-profile-header {
   padding: 20px 20px 16px;
-  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(145deg, #1E1B4B 0%, #312E81 100%);
+  border-radius: 12px 12px 0 0;
   flex-shrink: 0;
 }
 
-.candidate-header-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.candidate-avatar-info {
+/* Avatar row: avatar left, "View Resume" link right */
+.cd-avatar-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
 }
 
-.candidate-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: white;
-  font-size: 20px;
-  font-weight: 600;
+/* Avatar — neutral monogram on dark bg */
+.cd-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  letter-spacing: -0.3px;
+  border: 1px solid rgba(255,255,255,0.18);
 }
 
-.candidate-name {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 4px;
-  letter-spacing: -0.01em;
-}
-
-.candidate-contact {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.candidate-contact-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.contact-sep {
-  color: var(--border);
-  font-size: 12px;
-}
-
-.view-original-btn {
-  display: flex;
+/* View Resume — plain text link on dark bg */
+.cd-view-original-btn {
+  display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 10px;
+  padding: 0;
   font-size: 12px;
-  color: var(--text-secondary);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  background: none;
+  border: none;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
+  transition: color 0.15s;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(255,255,255,0.2);
+}
+
+.cd-view-original-btn:hover {
+  color: rgba(255,255,255,0.9);
+  text-decoration-color: rgba(255,255,255,0.5);
+}
+
+/* Name */
+.cd-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 8px;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+}
+
+/* Contact rows */
+.cd-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 0;
+}
+
+.cd-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1;
+}
+
+.cd-contact-item svg {
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.35);
+}
+
+/* Thin divider between contact and meta */
+.cd-header-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  margin: 14px 0 12px;
+}
+
+/* Meta list — label/value pairs */
+.cd-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cd-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cd-meta-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  min-width: 76px;
   flex-shrink: 0;
 }
 
-.view-original-btn:hover {
-  border-color: var(--text-muted);
-  background: white;
-}
-
-.candidate-tags {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.candidate-tag {
-  padding: 3px 10px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 20px;
+.cd-meta-value {
+  font-size: 12.5px;
   font-weight: 500;
+  color: rgba(255,255,255,0.85);
 }
 
-/* Resume Section Label */
+/* ── Resume section label ── */
 .resume-section-label {
-  padding: 12px 20px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
+  padding: 10px 20px 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #94A3B8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* Scrollable resume panel (wraps StructuredResume + download row) */
+/* Scrollable resume panel */
 .resume-panel-scroll {
   flex: 1;
   overflow-y: auto;
@@ -247,6 +289,10 @@
   display: flex;
   flex-direction: column;
 }
+
+.resume-panel-scroll::-webkit-scrollbar { width: 4px; }
+.resume-panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.resume-panel-scroll::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 99px; }
 
 /* ============================================
    RESUME NAVIGATION (Vertical Tabs)
@@ -260,7 +306,7 @@
 }
 
 .resume-nav {
-  width: 110px;
+  width: 130px;
   flex-shrink: 0;
   padding: 8px 0;
   border-right: 1px solid var(--border-light);
@@ -270,38 +316,39 @@
 }
 
 .resume-nav-item {
-  padding: 9px 16px;
-  font-size: 12.5px;
+  padding: 10px 16px;
+  font-size: 13px;
   color: var(--text-muted);
   cursor: pointer;
-  border-left: 2px solid transparent;
-  transition: all 0.15s;
-  font-weight: 500;
-  background: none;
+  border-left: 3px solid transparent;
   border-right: none;
   border-top: none;
   border-bottom: none;
+  transition: all 0.15s ease;
+  font-weight: 500;
+  background: none;
   text-align: left;
   width: 100%;
 }
 
 .resume-nav-item:hover {
-  color: var(--text-primary);
-  background: var(--bg);
+  color: var(--text-heading);
+  background: #F9F5F3;
 }
 
 .resume-nav-item.active {
   color: var(--primary);
-  border-left-color: var(--primary);
-  background: var(--primary-light);
   font-weight: 600;
+  background: var(--primary-light);
+  border-left-color: var(--primary);
+  border-radius: 0 8px 8px 0;
 }
 
 /* Resume Content Area */
 .resume-content-area {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 18px;
+  padding: 16px 22px;
 }
 
 .resume-content-area::-webkit-scrollbar {
@@ -424,6 +471,7 @@
   padding: 10px 12px;
   background: var(--bg);
   border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 
 .rc-edu-icon {
@@ -488,7 +536,8 @@
 /* Download Button */
 .resume-download-row {
   padding: 12px 20px;
-  border-top: 1px solid var(--border-light);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
   flex-shrink: 0;
 }
 
@@ -501,17 +550,16 @@
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-secondary);
-  background: var(--bg);
-  border: 1px solid var(--border);
+  color: var(--primary);
+  background: var(--card);
+  border: 1px solid var(--primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
 }
 
-.download-resume-btn:hover {
-  background: white;
-  border-color: var(--text-muted);
+.download-resume-btn:hover:not(:disabled) {
+  background: var(--primary-light);
 }
 
 /* ============================================
@@ -525,12 +573,13 @@
   padding: 20px 24px;
   box-shadow: var(--shadow-sm);
 }
-
 .match-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .match-card-title-row {
@@ -543,7 +592,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #FF4E6A, #E11D48);
+  background: linear-gradient(135deg, #E5383B, #C81E21);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -551,9 +600,11 @@
 }
 
 .match-card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   margin: 0;
 }
 
@@ -568,11 +619,12 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
 }
 
 .view-details-btn:hover {
   background: white;
+  border-color: var(--text-muted);
 }
 
 /* Match body: circle + insights side by side */
@@ -753,9 +805,9 @@
   border-radius: var(--radius);
   border: 1px solid var(--border);
   padding: 16px 16px 14px;
-  border-top: 3px solid #E5E7EB;
+  border-top: 3px solid #E8E4DF;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.15s;
+  transition: box-shadow 0.15s ease;
 }
 
 .score-card:hover {
@@ -775,7 +827,7 @@
 .score-card-value {
   font-size: 28px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text-heading);
   line-height: 1;
   margin-bottom: 4px;
 }
@@ -784,6 +836,23 @@
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+/* Assessment pending placeholder */
+.score-card-placeholder {
+  background: var(--orange-light);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--orange);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 72px;
+  color: #92400E;
+  font-size: 13px;
+  font-weight: 500;
+  grid-column: 1 / -1;
 }
 
 /* ============================================
@@ -801,8 +870,10 @@
 .sw-section-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 18px;
+  color: var(--text-heading);
+  margin: 0 0 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .sw-group {
@@ -819,8 +890,15 @@
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-secondary);
   margin-bottom: 10px;
+}
+
+/* Strengths header green, weaknesses header red */
+.sw-group:first-of-type .sw-group-header {
+  color: var(--green);
+}
+.sw-group:last-of-type .sw-group-header {
+  color: #DC2626;
 }
 
 .sw-items-grid {
@@ -829,22 +907,27 @@
   gap: 8px;
 }
 
+.sw-empty-state {
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
 .sw-tag {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
   cursor: default;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
 }
 
 .sw-tag.strength {
-  background: #EFF6FF;
-  color: #1E40AF;
-  border: 1px solid #DBEAFE;
+  background: var(--green-light);
+  color: #065F46;
+  border: 1px solid var(--green-border);
 }
 
 .sw-tag.weakness {
@@ -862,22 +945,31 @@
   padding: 0;
   background: none;
   border: none;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s ease;
 }
 
 .sw-tag:hover .sw-tag-remove {
   opacity: 1;
 }
 
-/* Add input */
+/* Add input — strengths */
+.sw-group:first-of-type .sw-add-input-wrap {
+  border: 1px solid var(--green-border);
+  background: var(--green-light);
+  border-radius: var(--radius-sm);
+}
+
+/* Add input — weaknesses */
+.sw-group:last-of-type .sw-add-input-wrap {
+  border: 1px solid var(--red-border);
+  background: var(--red-soft);
+  border-radius: var(--radius-sm);
+}
+
 .sw-add-input-wrap {
   display: flex;
   align-items: center;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: white;
   width: 200px;
 }
 
@@ -892,23 +984,27 @@
 }
 
 .sw-add-input::placeholder {
-  color: var(--text-faint);
+  color: var(--text-placeholder);
 }
 
 .sw-add-btn {
-  padding: 7px 10px;
-  background: none;
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
   border: none;
-  border-left: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 3px;
   cursor: pointer;
-  color: var(--text-muted);
+  color: #fff;
   display: flex;
   align-items: center;
-  transition: color 0.15s;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
 }
 
 .sw-add-btn:hover {
-  color: var(--text-primary);
+  background: var(--primary-dark);
 }
 
 /* ============================================
@@ -927,7 +1023,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .notes-title-row {
@@ -939,7 +1037,7 @@
 .notes-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-heading);
   margin: 0;
 }
 
@@ -947,27 +1045,27 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 12px;
-  font-size: 12.5px;
-  color: var(--primary);
-  background: var(--primary-light);
-  border: 1px solid var(--primary-mid);
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #fff;
+  background: var(--primary);
+  border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.15s;
+  transition: background 0.15s ease;
 }
 
 .add-note-btn:hover {
-  background: var(--primary-mid);
+  background: var(--primary-dark);
 }
 
 .notes-textarea {
   width: 100%;
   min-height: 88px;
-  padding: 12px 14px;
-  font-size: 13px;
-  color: var(--text-secondary);
+  padding: 12px;
+  font-size: 14px;
+  color: var(--text-heading);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -975,15 +1073,16 @@
   resize: vertical;
   font-family: inherit;
   box-sizing: border-box;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s ease;
 }
 
 .notes-textarea::placeholder {
-  color: var(--text-faint);
+  color: var(--text-placeholder);
 }
 
 .notes-textarea:focus {
-  border-color: var(--blue);
+  border-color: var(--primary);
+  background: #fff;
 }
 
 /* Notes timeline entries */
@@ -1003,7 +1102,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--border);
+  background: var(--primary-mid);
   flex-shrink: 0;
   margin-top: 6px;
 }
@@ -1013,7 +1112,7 @@
   background: var(--bg);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border);
 }
 
 .note-header {
@@ -1026,7 +1125,7 @@
 .note-round {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-heading);
 }
 
 .note-meta {
@@ -1071,7 +1170,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 28px 20px;
+  padding: 32px 20px;
   gap: 8px;
   text-align: center;
 }
@@ -1079,11 +1178,11 @@
 .notes-empty .empty-text {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--text-faint);
 }
 
 .notes-empty .empty-subtext {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-faint);
   margin: 0;
 }
@@ -1106,14 +1205,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
-  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(229,56,59,0.4);
+  transition: all 0.2s ease;
   z-index: 100;
 }
 
 .fab-button:hover {
-  background: #BE123C;
-  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.5);
+  background: var(--primary-dark);
+  box-shadow: 0 6px 18px rgba(229,56,59,0.5);
   transform: translateY(-1px);
 }
 
@@ -1209,13 +1308,13 @@
   border-radius: var(--radius-sm);
   outline: none;
   font-family: inherit;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s ease;
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
-  border-color: var(--blue);
+  border-color: var(--primary);
   background: white;
 }
 
@@ -1241,7 +1340,7 @@
    ============================================ */
 
 .candidate-detail-loading {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1258,7 +1357,7 @@
 }
 
 .shimmer {
-  background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+  background: linear-gradient(90deg, #EDE9E4 25%, #E0DBD5 50%, #EDE9E4 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius);
@@ -1274,7 +1373,7 @@
 }
 
 .candidate-detail-error {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1364,27 +1463,30 @@
   font-size: 12.5px;
 }
 
-/* Responsive — narrow viewport */
+/* ============================================
+   RESPONSIVE — narrow viewport
+   ============================================ */
+
 @media (max-width: 900px) {
   .candidate-detail-page {
-    margin: -24px -28px;
+    /* On mobile: allow full page scroll (exception to fixed layout) */
     height: auto;
-    min-height: calc(100vh - var(--topbar-height));
+    min-height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 16px;
+    padding: 12px 14px;
   }
   .candidate-columns {
     flex-direction: column;
     height: auto;
-    gap: 16px;
-    padding-bottom: 16px;
+    gap: 14px;
     overflow: visible;
   }
   .column-left {
     flex: none;
     width: 100%;
     height: auto;
+    overflow: visible;
     border-radius: 12px;
   }
   .column-right {
@@ -1394,7 +1496,7 @@
     overflow: visible;
   }
   .evaluation-panel {
-    padding: 16px;
+    padding: 0 0 16px 0;
   }
   .score-cards-row {
     grid-template-columns: repeat(2, 1fr);

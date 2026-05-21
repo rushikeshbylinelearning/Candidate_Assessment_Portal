@@ -5,128 +5,174 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import { 
-  Search, Plus, Send, ChevronRight, Copy, Check, Clock, ExternalLink, X, Users, 
+  Search, Plus, Send, X, Users, 
   ClipboardList, Upload, FileText, Download, AlertCircle, CheckCircle, Loader,
-  Trash2, Eye, UserPlus, UsersIcon, Edit2
+  Trash2, Eye, UserPlus, UsersIcon, Edit2, Copy, Award, Clock, Calendar
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import '../../styles/Candidates.css';
+import SummaryStrip from '../../components/candidates/SummaryStrip';
+import FilterBar from '../../components/candidates/FilterBar';
+import CandidateRow from '../../components/candidates/CandidateRow';
+import SkeletonRow, { SkeletonStyle } from '../../components/candidates/SkeletonRow';
+import PageShell from '../../components/layout/PageShell';
+
+// ── Prevent background scroll while any modal is open ───────────────────────
+function useBodyScrollLock() {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+}
 
 // ── Invite Link Modal ────────────────────────────────────────────────────────
-function InviteModal({ data, onClose }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(data.assessmentLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
-
-  const expiresAt = new Date(data.expiresAt);
-  const daysLeft = Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24));
-
-  return (
-    <div className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center z-50 p-6 animate-fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-7 pb-6 relative">
-          <button 
-            onClick={onClose} 
-            className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-          >
-            <X size={16} />
-          </button>
-          <div className="w-11 h-11 rounded-xl bg-primary-600 flex items-center justify-center mb-3.5">
-            <Send size={20} className="text-white" />
-          </div>
-          <h2 className="text-xl font-bold text-white mb-1">Assessment Assigned!</h2>
-          <p className="text-sm text-slate-400">Share this link with the candidate to begin their assessment.</p>
-        </div>
-        <div className="p-7">
-          <div className="flex items-center gap-2 px-3.5 py-2.5 bg-amber-50 rounded-lg border border-amber-200 mb-5">
-            <Clock size={15} className="text-amber-600 flex-shrink-0" />
-            <span className="text-sm text-amber-900 font-medium">
-              Link expires in <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong> · {expiresAt.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </span>
-          </div>
-          <div className="mb-5">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-              Assessment Link
-            </label>
-            <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-              <div className="flex-1 px-3.5 py-3 bg-slate-50 text-sm text-slate-700 font-mono overflow-hidden text-ellipsis whitespace-nowrap">
-                {data.assessmentLink}
-              </div>
-              <button 
-                onClick={handleCopy} 
-                className={`px-4 py-3 text-white border-none cursor-pointer flex items-center gap-1.5 text-sm font-semibold flex-shrink-0 transition-colors ${
-                  copied ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'
-                }`}
-              >
-                {copied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
-              </button>
-            </div>
-          </div>
-          <div className="flex gap-2.5">
-            <button 
-              onClick={handleCopy} 
-              className={`flex-1 py-3 px-4 rounded-lg text-white border-none font-bold text-sm cursor-pointer flex items-center justify-center gap-2 transition-all ${
-                copied ? 'bg-green-600' : 'bg-slate-900 hover:bg-slate-800'
-              }`}
-            >
-              {copied ? <><Check size={16} /> Copied!</> : <><Copy size={16} /> Copy Link</>}
-            </button>
-            <a 
-              href={data.assessmentLink} 
-              target="_blank" 
-              rel="noreferrer" 
-              className="flex-1 py-3 px-4 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-sm cursor-pointer flex items-center justify-center gap-2 no-underline hover:bg-slate-200 transition-colors"
-            >
-              <ExternalLink size={16} /> Preview
-            </a>
-          </div>
-          <p className="text-center text-xs text-slate-400 mt-4">
-            This link is single-use and tied to this candidate only.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Removed: token/link generation is no longer part of the assign flow
 
 // ── Assign Assessment Modal ──────────────────────────────────────────────────
 function AssignModal({ candidate, onClose, onAssigned }) {
+  useBodyScrollLock();
   const [allAssessments, setAllAssessments] = useState([]);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(new Set());
+  const [previouslyAssigned, setPreviouslyAssigned] = useState(new Set());
+  const [assignmentDetails, setAssignmentDetails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(null);
 
   useEffect(() => {
-    api.get('/assessments?active=true')
-      .then(r => {
-        setAllAssessments(r.data);
-        if (r.data.length > 0) setSelected(r.data[0]._id);
+    Promise.all([
+      api.get('/assessments?active=true'),
+      api.get(`/candidates/${candidate._id}/assigned-assessments`)
+    ])
+      .then(([assessmentsRes, assignedRes]) => {
+        setAllAssessments(assessmentsRes.data);
+        const assignments = assignedRes.data.assignments || [];
+        setAssignmentDetails(assignments);
+        const assignedIds = new Set(assignments.map(a => a.assessmentId));
+        setPreviouslyAssigned(assignedIds);
+        setSelected(new Set(assignedIds));
+      })
+      .catch(err => {
+        toast.error('Failed to load assessments');
+        console.error(err);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [candidate._id]);
 
   const filtered = allAssessments.filter(a =>
     a.title.toLowerCase().includes(search.toLowerCase()) ||
     a.roleId?.title?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const toggleSelect = (id) => {
+    // Check if this assessment is completed or in progress
+    const assignment = assignmentDetails.find(a => a.assessmentId === id);
+    
+    if (assignment?.isCompleted) {
+      toast.error('Cannot remove completed assessment');
+      return;
+    }
+    
+    if (assignment?.isInProgress && selected.has(id)) {
+      // Show confirmation dialog for in-progress assessments
+      setConfirmRemove(id);
+      return;
+    }
+    
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleConfirmRemove = () => {
+    if (confirmRemove) {
+      setSelected(prev => {
+        const next = new Set(prev);
+        next.delete(confirmRemove);
+        return next;
+      });
+      setConfirmRemove(null);
+    }
+  };
+
   const handleAssign = async () => {
-    if (!selected) return toast.error('Please select an assessment');
+    if (selected.size === 0) return toast.error('Please select at least one assessment');
+    
+    // Calculate diff
+    const toAdd = Array.from(selected).filter(id => !previouslyAssigned.has(id));
+    const toRemove = Array.from(previouslyAssigned).filter(id => !selected.has(id));
+    
+    if (toAdd.length === 0 && toRemove.length === 0) {
+      toast.info('No changes to save');
+      return;
+    }
+    
     setAssigning(true);
     try {
-      const { data } = await api.post(`/candidates/${candidate._id}/invite`, { assessmentId: selected });
-      onAssigned(data);
+      const operations = [];
+      
+      // Remove assessments first
+      for (const assessmentId of toRemove) {
+        operations.push(
+          api.post(`/candidates/${candidate._id}/remove-assessment`, { assessmentId })
+            .catch(err => {
+              // If it's a confirmation required error, we already handled it in toggleSelect
+              if (!err.response?.data?.requiresConfirmation) {
+                throw err;
+              }
+            })
+        );
+      }
+      
+      // Add new assessments
+      if (toAdd.length > 0) {
+        const STEP_TYPES = ['ROLE_BASED_ASSESSMENT', 'LANGUAGE_ASSESSMENT', 'EVALUATION_FORM', 'INTERVIEW_INTERACTION', 'POST_INTERVIEW_FEEDBACK'];
+        
+        // Find available step types (not already assigned)
+        const usedStepTypes = new Set(assignmentDetails.map(a => a.stepType));
+        const availableStepTypes = STEP_TYPES.filter(st => !usedStepTypes.has(st));
+        
+        const assessmentIds = {};
+        toAdd.forEach((id, i) => {
+          if (i < availableStepTypes.length) {
+            assessmentIds[availableStepTypes[i]] = id;
+          }
+        });
+        
+        operations.push(
+          api.post(`/candidates/${candidate._id}/invite`, { assessmentIds })
+        );
+      }
+      
+      await Promise.all(operations);
+      
+      const changeMsg = [];
+      if (toAdd.length > 0) changeMsg.push(`${toAdd.length} added`);
+      if (toRemove.length > 0) changeMsg.push(`${toRemove.length} removed`);
+      
+      toast.success(`Assessments updated: ${changeMsg.join(', ')}`);
+      onAssigned();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to assign assessment');
+      toast.error(err.response?.data?.message || 'Failed to update assessments');
     } finally {
       setAssigning(false);
     }
   };
+  
+  const hasChanges = () => {
+    if (selected.size !== previouslyAssigned.size) return true;
+    for (const id of selected) {
+      if (!previouslyAssigned.has(id)) return true;
+    }
+    return false;
+  };
+  
+  const isEditing = previouslyAssigned.size > 0;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -137,7 +183,7 @@ function AssignModal({ candidate, onClose, onAssigned }) {
               <ClipboardList size={20} />
             </div>
             <div>
-              <h2>Assign Assessment</h2>
+              <h2>{isEditing ? 'Update Assessments' : 'Assign Assessments'}</h2>
               <p>To: <strong>{candidate.name}</strong> · {candidate.appliedRole?.title || 'No role'}</p>
             </div>
           </div>
@@ -155,6 +201,17 @@ function AssignModal({ candidate, onClose, onAssigned }) {
           />
         </div>
 
+        <div className="assign-count-bar">
+          <span>
+            <strong>{selected.size}</strong> assessment{selected.size !== 1 ? 's' : ''} selected
+          </span>
+          {previouslyAssigned.size > 0 && (
+            <span>
+              {previouslyAssigned.size} currently assigned
+            </span>
+          )}
+        </div>
+
         <div className="assign-list">
           {loading ? (
             <div className="assign-loading">Loading assessments...</div>
@@ -164,21 +221,35 @@ function AssignModal({ candidate, onClose, onAssigned }) {
             </div>
           ) : (
             filtered.map(a => {
-              const isSelected = selected === a._id;
+              const isSelected = selected.has(a._id);
+              const isAssigned = previouslyAssigned.has(a._id);
               const isRoleMatch = a.roleId?._id === candidate.appliedRole?._id;
+              const assignment = assignmentDetails.find(ad => ad.assessmentId === a._id);
+              const isCompleted = assignment?.isCompleted;
+              const isInProgress = assignment?.isInProgress;
+              
               return (
-                <label key={a._id} className={`assign-item ${isSelected ? 'selected' : ''}`}>
+                <label 
+                  key={a._id} 
+                  className={`assign-item ${isSelected ? 'selected' : ''} ${isCompleted ? 'locked' : ''} ${isAssigned && !isCompleted ? 'assigned' : ''}`}
+                  title={isCompleted ? 'Completed — cannot remove' : ''}
+                >
                   <input
-                    type="radio"
-                    name="assign-assessment"
+                    type="checkbox"
                     value={a._id}
                     checked={isSelected}
-                    onChange={() => setSelected(a._id)}
+                    onChange={() => toggleSelect(a._id)}
+                    disabled={isCompleted}
                   />
                   <div className="assign-item-content">
                     <div className="assign-item-header">
                       <span className="assign-item-title">{a.title}</span>
+                      {isAssigned && (
+                        <span className="status-badge assigned-badge">✓ Assigned</span>
+                      )}
                       {isRoleMatch && <span className="role-match-badge">Role match</span>}
+                      {isCompleted && <span className="status-badge completed">Completed</span>}
+                      {isInProgress && !isCompleted && <span className="status-badge in-progress">In Progress</span>}
                     </div>
                     <div className="assign-item-meta">
                       <span>{a.roleId?.title || 'No role'}</span>
@@ -197,18 +268,55 @@ function AssignModal({ candidate, onClose, onAssigned }) {
         </div>
 
         <div className="assign-footer">
-          <button onClick={handleAssign} disabled={assigning || !selected} className="btn-primary">
-            <Send size={15} /> {assigning ? 'Assigning...' : 'Assign & Generate Link'}
+          <button 
+            onClick={handleAssign} 
+            disabled={assigning || selected.size === 0 || !hasChanges()} 
+            className="btn-primary"
+          >
+            <Send size={15} /> 
+            {assigning 
+              ? (isEditing ? 'Updating...' : 'Assigning...') 
+              : (isEditing ? 'Update Assignments' : `Assign${selected.size > 0 ? ` (${selected.size})` : ''}`)}
           </button>
           <button onClick={onClose} className="btn-secondary">Cancel</button>
         </div>
       </div>
+      
+      {/* Confirmation Dialog for In-Progress Assessment Removal */}
+      {confirmRemove && (
+        <div className="modal-overlay" style={{ zIndex: 10001 }}>
+          <div className="modal-content" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-header-content">
+                <div className="modal-icon" style={{ background: '#fef3c7', color: '#f59e0b' }}>
+                  <AlertCircle size={20} />
+                </div>
+                <h2>Remove In-Progress Assessment?</h2>
+              </div>
+            </div>
+            <div style={{ padding: '16px 24px' }}>
+              <p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>
+                This assessment is currently in progress. Removing it will discard the candidate's progress. Are you sure?
+              </p>
+            </div>
+            <div className="form-actions">
+              <button onClick={handleConfirmRemove} className="btn-danger">
+                Remove Anyway
+              </button>
+              <button onClick={() => setConfirmRemove(null)} className="btn-secondary">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Add Candidate Modal (with Resume Upload) ────────────────────────────────
 function AddCandidateModal({ roles, onClose, onSuccess }) {
+  useBodyScrollLock();
   const [form, setForm] = useState({ 
     name: '', 
     email: '', 
@@ -266,7 +374,10 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
             <div className="modal-icon">
               <UserPlus size={20} />
             </div>
-            <h2>Add New Candidate</h2>
+            <div>
+              <h2>Add New Candidate</h2>
+              <p className="modal-subtitle">Fill in the details to add a candidate to the pipeline</p>
+            </div>
           </div>
           <button onClick={onClose} className="modal-close-btn">
             <X size={16} />
@@ -276,67 +387,73 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
         <form onSubmit={handleSubmit} className="add-candidate-form">
           <div className="form-grid">
             <div className="form-field">
-              <label>Full Name *</label>
+              <label>Full Name <span className="required-star">*</span></label>
               <input
                 type="text"
                 required
                 value={form.name}
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                placeholder="John Doe"
+                placeholder="e.g. John Doe"
               />
             </div>
 
             <div className="form-field">
-              <label>Email *</label>
+              <label>Email <span className="required-star">*</span></label>
               <input
                 type="email"
                 required
                 value={form.email}
                 onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                placeholder="john@example.com"
+                placeholder="e.g. john@company.com"
               />
             </div>
 
             <div className="form-field">
-              <label>Phone</label>
+              <label>Phone <span className="optional-label">(optional)</span></label>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                placeholder="+1 (555) 000-0000"
+                placeholder="e.g. +1 555 000 0000"
               />
             </div>
 
             <div className="form-field">
-              <label>Applied Role *</label>
+              <label>Applied Role <span className="required-star">*</span></label>
               <select
                 required
                 value={form.appliedRole}
                 onChange={e => setForm(p => ({ ...p, appliedRole: e.target.value }))}
               >
-                <option value="">Select role...</option>
+                <option value="">Select a role…</option>
                 {roles.map(r => (
                   <option key={r._id} value={r._id}>{r.title} — {r.department}</option>
                 ))}
               </select>
             </div>
 
-            <div className="form-field">
-              <label>Experience Level *</label>
-              <select
-                value={form.experienceLevel}
-                onChange={e => setForm(p => ({ ...p, experienceLevel: e.target.value }))}
-              >
+            <div className="form-field form-field-full">
+              <label>Experience Level <span className="required-star">*</span></label>
+              <div className="experience-options">
                 {['intern', 'junior', 'mid', 'senior', 'lead'].map(l => (
-                  <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
+                  <label key={l} className={`experience-option ${form.experienceLevel === l ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="experienceLevel"
+                      value={l}
+                      checked={form.experienceLevel === l}
+                      onChange={e => setForm(p => ({ ...p, experienceLevel: e.target.value }))}
+                    />
+                    {l.charAt(0).toUpperCase() + l.slice(1)}
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 
           {/* Resume Upload */}
           <div className="resume-upload-section">
-            <label>Resume (Optional)</label>
+            <label>Resume <span className="optional-label">(optional)</span></label>
             <div 
               className={`resume-dropzone ${resume ? 'has-file' : ''}`}
               onClick={() => fileInputRef.current?.click()}
@@ -344,17 +461,17 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf"
                 onChange={handleFileChange}
                 className="hidden"
               />
               {resume ? (
                 <div className="resume-file-info">
-                  <FileText size={24} />
+                  <FileText size={20} />
                   <div className="resume-file-details">
                     <span className="resume-file-name">{resume.name}</span>
                     <span className="resume-file-size">
-                      {(resume.size / 1024).toFixed(2)} KB
+                      {(resume.size / 1024).toFixed(1)} KB
                     </span>
                   </div>
                   <button
@@ -365,25 +482,25 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
                     }}
                     className="resume-remove-btn"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               ) : (
                 <div className="resume-dropzone-content">
-                  <Upload size={32} />
+                  <Upload size={22} />
                   <p className="resume-dropzone-title">Click to upload resume</p>
-                  <p className="resume-dropzone-subtitle">PDF, DOC, DOCX (Max 5MB)</p>
+                  <p className="resume-dropzone-subtitle">PDF, DOC or DOCX · Max 5 MB</p>
                 </div>
               )}
             </div>
           </div>
 
           <div className="form-actions">
-            <button type="submit" disabled={uploading} className="btn-primary">
+            <button type="submit" disabled={uploading} className="btn-primary btn-submit">
               {uploading ? (
-                <><Loader size={16} className="spinner" /> Uploading...</>
+                <><Loader size={15} className="spinner" /> Uploading…</>
               ) : (
-                <><Plus size={16} /> Add Candidate</>
+                <><Plus size={15} /> Add Candidate</>
               )}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary">
@@ -398,6 +515,7 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
 
 // ── Edit Candidate Modal ─────────────────────────────────────────────────────
 function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
+  useBodyScrollLock();
   const [form, setForm] = useState({ 
     name: candidate.name || '', 
     email: candidate.email || '', 
@@ -455,7 +573,10 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
             <div className="modal-icon">
               <Edit2 size={20} />
             </div>
-            <h2>Edit Candidate</h2>
+            <div>
+              <h2>Edit Candidate</h2>
+              <p className="modal-subtitle">Update the candidate's information below</p>
+            </div>
           </div>
           <button onClick={onClose} className="modal-close-btn">
             <X size={16} />
@@ -465,71 +586,77 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
         <form onSubmit={handleSubmit} className="add-candidate-form">
           <div className="form-grid">
             <div className="form-field">
-              <label>Full Name *</label>
+              <label>Full Name <span className="required-star">*</span></label>
               <input
                 type="text"
                 required
                 value={form.name}
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                placeholder="John Doe"
+                placeholder="e.g. John Doe"
               />
             </div>
 
             <div className="form-field">
-              <label>Email *</label>
+              <label>Email <span className="required-star">*</span></label>
               <input
                 type="email"
                 required
                 value={form.email}
                 onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                placeholder="john@example.com"
+                placeholder="e.g. john@company.com"
               />
             </div>
 
             <div className="form-field">
-              <label>Phone</label>
+              <label>Phone <span className="optional-label">(optional)</span></label>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                placeholder="+1 (555) 000-0000"
+                placeholder="e.g. +1 555 000 0000"
               />
             </div>
 
             <div className="form-field">
-              <label>Applied Role *</label>
+              <label>Applied Role <span className="required-star">*</span></label>
               <select
                 required
                 value={form.appliedRole}
                 onChange={e => setForm(p => ({ ...p, appliedRole: e.target.value }))}
               >
-                <option value="">Select role...</option>
+                <option value="">Select a role…</option>
                 {roles.map(r => (
                   <option key={r._id} value={r._id}>{r.title} — {r.department}</option>
                 ))}
               </select>
             </div>
 
-            <div className="form-field">
-              <label>Experience Level *</label>
-              <select
-                value={form.experienceLevel}
-                onChange={e => setForm(p => ({ ...p, experienceLevel: e.target.value }))}
-              >
+            <div className="form-field form-field-full">
+              <label>Experience Level <span className="required-star">*</span></label>
+              <div className="experience-options">
                 {['intern', 'junior', 'mid', 'senior', 'lead'].map(l => (
-                  <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
+                  <label key={l} className={`experience-option ${form.experienceLevel === l ? 'active' : ''}`}>
+                    <input
+                      type="radio"
+                      name="experienceLevel"
+                      value={l}
+                      checked={form.experienceLevel === l}
+                      onChange={e => setForm(p => ({ ...p, experienceLevel: e.target.value }))}
+                    />
+                    {l.charAt(0).toUpperCase() + l.slice(1)}
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
 
           {/* Resume Upload */}
           <div className="resume-upload-section">
-            <label>Resume {candidate.resumeUrl && '(Upload new to replace)'}</label>
+            <label>Resume {candidate.resumeUrl ? <span className="optional-label">(upload new to replace)</span> : <span className="optional-label">(optional)</span>}</label>
             {candidate.resumeUrl && !resume && (
               <div className="current-resume-info">
-                <FileText size={16} />
-                <span>Current resume available</span>
+                <FileText size={14} />
+                <span>Current resume on file</span>
                 <a href={candidate.resumeUrl} target="_blank" rel="noreferrer" className="view-resume-link">
                   View
                 </a>
@@ -542,17 +669,17 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf"
                 onChange={handleFileChange}
                 className="hidden"
               />
               {resume ? (
                 <div className="resume-file-info">
-                  <FileText size={24} />
+                  <FileText size={20} />
                   <div className="resume-file-details">
                     <span className="resume-file-name">{resume.name}</span>
                     <span className="resume-file-size">
-                      {(resume.size / 1024).toFixed(2)} KB
+                      {(resume.size / 1024).toFixed(1)} KB
                     </span>
                   </div>
                   <button
@@ -563,25 +690,25 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
                     }}
                     className="resume-remove-btn"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               ) : (
                 <div className="resume-dropzone-content">
-                  <Upload size={32} />
-                  <p className="resume-dropzone-title">Click to upload new resume</p>
-                  <p className="resume-dropzone-subtitle">PDF, DOC, DOCX (Max 5MB)</p>
+                  <Upload size={22} />
+                  <p className="resume-dropzone-title">Click to upload resume</p>
+                  <p className="resume-dropzone-subtitle">PDF, DOC or DOCX · Max 5 MB</p>
                 </div>
               )}
             </div>
           </div>
 
           <div className="form-actions">
-            <button type="submit" disabled={updating} className="btn-primary">
+            <button type="submit" disabled={updating} className="btn-primary btn-submit">
               {updating ? (
-                <><Loader size={16} className="spinner" /> Updating...</>
+                <><Loader size={15} className="spinner" /> Saving…</>
               ) : (
-                <><Edit2 size={16} /> Update Candidate</>
+                <><Edit2 size={15} /> Save Changes</>
               )}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary">
@@ -596,6 +723,7 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
 
 // ── Delete Confirmation Modal ────────────────────────────────────────────────
 function DeleteConfirmModal({ candidate, onClose, onConfirm }) {
+  useBodyScrollLock();
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -655,6 +783,7 @@ function DeleteConfirmModal({ candidate, onClose, onConfirm }) {
 
 // ── Bulk Upload Modal ────────────────────────────────────────────────────────
 function BulkUploadModal({ onClose, onSuccess }) {
+  useBodyScrollLock();
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState(null);
@@ -837,278 +966,690 @@ function BulkUploadModal({ onClose, onSuccess }) {
   );
 }
 
+// ── View Completed Assessments Modal ─────────────────────────────────────────
+function ViewAssessmentsModal({ candidate, onClose }) {
+  useBodyScrollLock();
+  const [pipelines, setPipelines] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPipeline, setSelectedPipeline] = useState(null);
+  const [assessmentData, setAssessmentData] = useState(null);
+  const [loadingData, setLoadingData] = useState(false);
+  const [questions, setQuestions] = useState({});
+
+  useEffect(() => {
+    const fetchPipelines = async () => {
+      try {
+        const { data } = await api.get(`/pipeline/candidate/${candidate._id}`);
+        setPipelines(data.pipelines || []);
+      } catch (err) {
+        toast.error('Failed to load assessment data');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPipelines();
+  }, [candidate._id]);
+
+  const fetchAssessmentData = async (pipelineId, stepType) => {
+    setLoadingData(true);
+    setAssessmentData(null);
+    try {
+      const { data } = await api.get(`/pipeline/${pipelineId}/step/${stepType}/data`);
+      setAssessmentData(data);
+      setSelectedPipeline({ pipelineId, stepType });
+
+      // Fetch questions for the responses
+      if (data.data?.responses && data.data.responses.length > 0) {
+        const questionIds = [...new Set(data.data.responses.map(r => r.questionId).filter(Boolean))];
+        const questionPromises = questionIds.map(id => 
+          api.get(`/questions/${id}`).catch(() => null)
+        );
+        const questionResults = await Promise.all(questionPromises);
+        const questionsMap = {};
+        questionResults.forEach((result, idx) => {
+          if (result?.data) {
+            questionsMap[questionIds[idx]] = result.data;
+          }
+        });
+        setQuestions(questionsMap);
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to load assessment details';
+      toast.error(msg);
+      console.error('[fetchAssessmentData] error:', err.response?.data || err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatDuration = (start, end) => {
+    if (!start || !end) return '—';
+    const diff = new Date(end) - new Date(start);
+    const minutes = Math.floor(diff / 60000);
+    return `${minutes} min`;
+  };
+
+  const getAnswerDisplay = (response, question) => {
+    if (!question) {
+      return typeof response.answer === 'object' 
+        ? JSON.stringify(response.answer) 
+        : response.answer || '(No answer provided)';
+    }
+
+    // For MCQ questions, show the selected option text
+    if (question.type === 'mcq' && question.options) {
+      const selectedOption = question.options.find(opt => opt.id === response.answer);
+      return selectedOption ? selectedOption.text : response.answer;
+    }
+
+    // For multi-select, show all selected options
+    if (question.type === 'mcq_multi' && Array.isArray(response.answer) && question.options) {
+      const selectedOptions = question.options.filter(opt => response.answer.includes(opt.id));
+      return selectedOptions.length > 0 
+        ? selectedOptions.map(opt => opt.text).join(', ')
+        : '(No answer provided)';
+    }
+
+    // For other types, show the answer as-is
+    return typeof response.answer === 'object' 
+      ? JSON.stringify(response.answer) 
+      : response.answer || '(No answer provided)';
+  };
+
+  const isCorrectAnswer = (response, question) => {
+    if (!question || !question.correctAnswer) return null;
+    
+    if (question.type === 'mcq_multi' && Array.isArray(response.answer)) {
+      const correctSet = new Set(question.correctAnswer);
+      const answerSet = new Set(response.answer);
+      return correctSet.size === answerSet.size && 
+             [...correctSet].every(item => answerSet.has(item));
+    }
+    
+    return response.answer === question.correctAnswer;
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div 
+        className="modal-content view-assessments-modal" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="modal-header">
+          <div className="modal-header-content">
+            <div className="modal-icon">
+              <Award size={18} />
+            </div>
+            <div>
+              <h2>Assessment Results</h2>
+              <p className="modal-subtitle">{candidate.name} · {candidate.appliedRole?.title || 'No role'}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="modal-close-btn">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="va-body">
+          {loading ? (
+            <div className="va-empty-state">
+              <Loader size={28} className="spinner" style={{ color: '#94a3b8' }} />
+              <p>Loading assessments…</p>
+            </div>
+          ) : pipelines.length === 0 ? (
+            <div className="va-empty-state">
+              <ClipboardList size={40} strokeWidth={1.5} style={{ color: '#cbd5e1' }} />
+              <p style={{ fontWeight: 600, color: '#475569', marginBottom: 4 }}>No assessments yet</p>
+              <p style={{ fontSize: 13 }}>This candidate hasn't completed any assessments.</p>
+            </div>
+          ) : (
+            <div className="va-layout">
+              {/* Left — pipeline list */}
+              <div className="va-sidebar">
+                <div className="va-section-label">Pipelines</div>
+                {pipelines.map((pipeline) => (
+                  <div key={pipeline.pipelineId} className="va-pipeline-card">
+                    <div className="va-pipeline-header">
+                      <span className="va-pipeline-title">
+                        {pipeline.role?.title || 'Assessment'}
+                      </span>
+                      <span className={`va-status-badge va-status-${pipeline.status === 'FINISHED' ? 'completed' : 'active'}`}>
+                        {pipeline.status === 'FINISHED' ? 'Completed' : pipeline.status}
+                      </span>
+                    </div>
+
+                    <div className="va-pipeline-meta">
+                      <Calendar size={11} />
+                      {formatDate(pipeline.createdAt)}
+                      {pipeline.aggregateScore != null && (
+                        <span className={`va-score ${pipeline.aggregateScore >= 70 ? 'good' : pipeline.aggregateScore >= 50 ? 'mid' : 'low'}`}>
+                          · {Math.round(pipeline.aggregateScore)}%
+                        </span>
+                      )}
+                    </div>
+
+                    {pipeline.completedSteps?.length > 0 && (
+                      <div className="va-steps">
+                        {pipeline.completedSteps.map((stepType) => {
+                          const isActive = selectedPipeline?.pipelineId === pipeline.pipelineId && selectedPipeline?.stepType === stepType;
+                          return (
+                            <button
+                              key={stepType}
+                              onClick={() => fetchAssessmentData(pipeline.pipelineId, stepType)}
+                              className={`va-step-btn ${isActive ? 'active' : ''}`}
+                            >
+                              <Eye size={11} />
+                              {stepType.replace(/_/g, ' ')}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Right — detail panel */}
+              <div className="va-detail">
+                {loadingData ? (
+                  <div className="va-empty-state">
+                    <Loader size={22} className="spinner" style={{ color: '#94a3b8' }} />
+                    <p>Loading details…</p>
+                  </div>
+                ) : assessmentData ? (
+                  <div className="va-detail-content">
+                    {/* Step header */}
+                    <div className="va-detail-header">
+                      <div className="va-detail-title">
+                        {assessmentData.stepType.replace(/_/g, ' ')}
+                      </div>
+                      <div className="va-detail-meta">
+                        <span><Clock size={11} /> {formatDate(assessmentData.startedAt)}</span>
+                        <span><CheckCircle size={11} /> {formatDuration(assessmentData.startedAt, assessmentData.completedAt)}</span>
+                        {assessmentData.score != null && (
+                          <span className={`va-score ${assessmentData.score >= 70 ? 'good' : assessmentData.score >= 50 ? 'mid' : 'low'}`}>
+                            Score: {Math.round(assessmentData.score)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Section scores */}
+                    {assessmentData.data?.sectionScores && Object.keys(assessmentData.data.sectionScores).length > 0 && (
+                      <div className="va-section-scores">
+                        {Object.entries(assessmentData.data.sectionScores).map(([section, score]) =>
+                          score != null && (
+                            <div key={section} className="va-section-score-card">
+                              <div className="va-section-score-label">{section}</div>
+                              <div className={`va-section-score-value ${score >= 70 ? 'good' : score >= 50 ? 'mid' : 'low'}`}>
+                                {Math.round(score)}%
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    {/* Responses */}
+                    {assessmentData.data?.responses?.length > 0 && (
+                      <div className="va-responses">
+                        <div className="va-section-label">
+                          Responses · {assessmentData.data.responses.length} questions
+                        </div>
+                        {assessmentData.data.responses.map((response, idx) => {
+                          const question = questions[response.questionId];
+                          const isCorrect = isCorrectAnswer(response, question);
+                          return (
+                            <div key={idx} className={`va-response-card ${isCorrect === true ? 'correct' : isCorrect === false ? 'incorrect' : ''}`}>
+                              <div className="va-response-top">
+                                <span className="va-q-num">Q{idx + 1}</span>
+                                {question?.category && (
+                                  <span className="va-tag blue">{question.category}</span>
+                                )}
+                                {question?.difficulty && (
+                                  <span className={`va-tag ${question.difficulty === 'hard' ? 'red' : question.difficulty === 'medium' ? 'amber' : 'green'}`}>
+                                    {question.difficulty}
+                                  </span>
+                                )}
+                                {isCorrect !== null && (
+                                  <span className={`va-verdict ${isCorrect ? 'correct' : 'incorrect'}`}>
+                                    {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                                  </span>
+                                )}
+                              </div>
+
+                              {question ? (
+                                <>
+                                  <div className="va-question-text">{question.text}</div>
+                                  <div className="va-answer-row">
+                                    <span className="va-answer-label">Answer</span>
+                                    <span className="va-answer-value">{getAnswerDisplay(response, question)}</span>
+                                  </div>
+                                  {isCorrect === false && question.correctAnswer && (
+                                    <div className="va-answer-row correct-answer">
+                                      <span className="va-answer-label">Correct</span>
+                                      <span className="va-answer-value">
+                                        {question.type === 'mcq'
+                                          ? question.options?.find(opt => opt.id === question.correctAnswer)?.text || question.correctAnswer
+                                          : Array.isArray(question.correctAnswer)
+                                            ? question.options?.filter(opt => question.correctAnswer.includes(opt.id)).map(opt => opt.text).join(', ')
+                                            : question.correctAnswer}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="va-answer-row">
+                                  <span className="va-answer-label">Answer</span>
+                                  <span className="va-answer-value">{getAnswerDisplay(response, null)}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="va-empty-state">
+                    <Eye size={36} strokeWidth={1.5} style={{ color: '#cbd5e1' }} />
+                    <p>Select a step to view details</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="va-footer">
+          <button onClick={onClose} className="btn-secondary va-close-btn">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function Candidates() {
   const [candidates, setCandidates] = useState([]);
+  const [allCandidates, setAllCandidates] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ role: '', status: '' });
+  const [filters, setFilters] = useState({ role: '', status: '', experience: '' });
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [inviteData, setInviteData] = useState(null);
   const [assignTarget, setAssignTarget] = useState(null);
+  const [viewAssessmentsTarget, setViewAssessmentsTarget] = useState(null);
   const navigate = useNavigate();
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = async (applyFilters = true) => {
     const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (filters.role) params.set('role', filters.role);
-    if (filters.status) params.set('status', filters.status);
+    if (applyFilters) {
+      if (search) params.set('search', search);
+      if (filters.role) params.set('role', filters.role);
+      if (filters.status) params.set('status', filters.status);
+      if (filters.experience) params.set('experienceLevel', filters.experience);
+    }
     const { data } = await api.get(`/candidates?${params}`);
-    setCandidates(data.candidates);
+    return data.candidates;
+  };
+
+  const loadAll = async () => {
+    try {
+      const [filtered, all] = await Promise.all([
+        fetchCandidates(true),
+        fetchCandidates(false),
+      ]);
+      setCandidates(filtered);
+      setAllCandidates(all);
+    } catch (err) {
+      toast.error('Failed to load candidates');
+    }
   };
 
   useEffect(() => {
-    Promise.all([fetchCandidates(), api.get('/roles?active=true')])
+    Promise.all([loadAll(), api.get('/roles?active=true')])
       .then(([, r]) => setRoles(r.data))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchCandidates(); }, [search, filters]);
+  useEffect(() => {
+    if (!loading) loadAll();
+  }, [search, filters]);
 
-  const handleAssigned = (data) => {
+  const handleAssigned = () => {
     setAssignTarget(null);
-    setInviteData(data);
-    fetchCandidates();
+    loadAll();
   };
 
-  const canAssign = (status) => ['pending', 'expired'].includes(status);
+  const handleClearFilters = () => {
+    setSearch('');
+    setFilters({ role: '', status: '', experience: '' });
+  };
+
+  const hasFilters = search || filters.role || filters.status || filters.experience;
+
+  // ── CTA buttons (passed to PageShell header) ──────────────────────────────
+  const headerActions = (
+    <>
+      <button
+        onClick={() => setShowBulk(true)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+          padding: '7px 15px', borderRadius: 9,
+          border: '1px solid #E2E8F0', background: '#fff',
+          color: '#475569', fontSize: 13, fontWeight: 600,
+          cursor: 'pointer', transition: 'all 0.2s',
+          boxShadow: '0 1px 2px rgba(16,24,40,0.05)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#CBD5E1'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#E2E8F0'; }}
+      >
+        <UsersIcon size={14} /> Bulk Upload
+      </button>
+      <button
+        onClick={() => setShowAdd(true)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 7,
+          padding: '7px 16px', borderRadius: 9,
+          border: 'none', background: '#F43F5E',
+          color: '#fff', fontSize: 13, fontWeight: 600,
+          cursor: 'pointer', transition: 'all 0.2s',
+          boxShadow: '0 2px 8px rgba(244,63,94,0.28)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#E11D48'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#F43F5E'; e.currentTarget.style.transform = 'translateY(0)'; }}
+      >
+        <Plus size={14} /> Add Candidate
+      </button>
+    </>
+  );
 
   return (
-    <div className="candidates-page">
-      {/* Squircle Header */}
-      <div className="squircle-header">
-        <div className="squircle-header-icon">
-          <Users size={20} />
+    <PageShell>
+      <SkeletonStyle />
+
+      {/* -- Dark header card � matches Dashboard style -- */}
+      <div style={{
+        background: 'linear-gradient(135deg, #0C1220 0%, #1E2A45 60%, #162035 100%)',
+        borderRadius: 12,
+        padding: '20px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        boxShadow: '0 4px 16px rgba(12,18,32,0.18), 0 1px 4px rgba(12,18,32,0.12)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        flexShrink: 0,
+        marginBottom: 10,
+      }}>
+        {/* Icon */}
+        <div style={{
+          width: 42, height: 42, borderRadius: 10,
+          background: 'rgba(244,63,94,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, color: '#F43F5E',
+        }}>
+          <UsersIcon size={20} />
         </div>
-        <div className="squircle-header-content">
-          <h1>Candidates</h1>
-          <p>Manage and review applicants</p>
+        {/* Title + subtitle */}
+        <div style={{ flex: 1 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.2 }}>
+            Candidates
+          </h1>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: 0, fontWeight: 400 }}>
+            Manage and review your applicant pipeline
+          </p>
         </div>
-        <div className="squircle-header-actions">
-          <Button variant="outline" onClick={() => setShowBulk(true)}>
-            <UsersIcon size={16} /> Bulk Upload
-          </Button>
-          <Button onClick={() => setShowAdd(true)}>
-            <Plus size={16} /> Add Candidate
-          </Button>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          <button
+            onClick={() => setShowBulk(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '7px 15px', borderRadius: 9,
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+          >
+            <UsersIcon size={14} /> Bulk Upload
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              padding: '7px 16px', borderRadius: 9,
+              border: 'none', background: '#F43F5E',
+              color: '#fff', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(244,63,94,0.35)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#E11D48'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#F43F5E'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            <Plus size={14} /> Add Candidate
+          </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="filters-card">
-        <div className="filters-container">
-          <div className="search-box">
-            <Search size={16} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name or email..."
-            />
-          </div>
-          <select
-            value={filters.role}
-            onChange={e => setFilters(p => ({ ...p, role: e.target.value }))}
-            className="filter-select"
-          >
-            <option value="">All Roles</option>
-            {roles.map(r => <option key={r._id} value={r._id}>{r.title}</option>)}
-          </select>
-          <select
-            value={filters.status}
-            onChange={e => setFilters(p => ({ ...p, status: e.target.value }))}
-            className="filter-select"
-          >
-            <option value="">All Status</option>
-            {['pending', 'invited', 'in_progress', 'completed', 'expired'].map(s => (
-              <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
-        </div>
-      </Card>
+      {/* ── Summary strip (static) ── */}
+      <SummaryStrip candidates={allCandidates} />
 
-      {/* Table */}
-      <Card className="table-card">
+      {/* ── Filter bar (static) ── */}
+      <FilterBar
+        search={search}
+        onSearch={setSearch}
+        filters={filters}
+        onFilter={setFilters}
+        roles={roles}
+        onClear={handleClearFilters}
+      />
+
+      {/* ── Table card — this is the ONLY scrollable section ── */}
+      <div style={{
+        flex: 1,           // takes all remaining vertical space
+        minHeight: 0,      // ❗ CRITICAL: allows flex child to shrink below content size
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#fff',
+        border: '1px solid #E4E7EC',
+        borderRadius: 14,
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
+      }}>
+        {/* Table toolbar — always visible */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px',
+          borderBottom: '1px solid #F1F5F9',
+          flexShrink: 0,
+          background: '#fff',
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
+            {loading ? 'Loading…' : `${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`}
+            {hasFilters && !loading && (
+              <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 400, marginLeft: 6 }}>
+                (filtered)
+              </span>
+            )}
+          </span>
+        </div>
+
         {loading ? (
-          <div className="table-loading">
-            <Loader size={32} className="spinner" />
-            <p>Loading candidates...</p>
-          </div>
-        ) : candidates.length === 0 ? (
-          <div className="table-empty">
-            <Users size={48} />
-            <h3>No candidates found</h3>
-            <p>Add candidates individually or use bulk upload</p>
-            <div className="empty-actions">
-              <Button onClick={() => setShowAdd(true)}>
-                <Plus size={16} /> Add Candidate
-              </Button>
-              <Button variant="outline" onClick={() => setShowBulk(true)}>
-                <UsersIcon size={16} /> Bulk Upload
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="candidates-table">
+          /* ── Skeleton state ── */
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>
-                  <th>Candidate</th>
-                  <th>Role</th>
-                  <th>Access Code</th>
-                  <th>Experience</th>
-                  <th>Assessment</th>
-                  <th>Score</th>
-                  <th>Decision</th>
-                  <th>Actions</th>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #F1F5F9' }}>
+                  {['Candidate', 'Role', 'Experience', 'Access Code', 'Assessment', 'Score', 'Decision', 'Actions'].map(h => (
+                    <th key={h} style={{
+                      padding: '10px 16px', textAlign: 'left',
+                      fontSize: 11, fontWeight: 700, color: '#64748B',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                      whiteSpace: 'nowrap', position: 'sticky', top: 0,
+                      background: '#F8FAFC', zIndex: 1,
+                    }}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {candidates.map((c) => (
-                  <tr key={c._id} onClick={() => navigate(`/hr/candidates/${c._id}`)}>
-                    <td>
-                      <div className="candidate-cell">
-                        <div className="candidate-avatar">
-                          {c.name[0].toUpperCase()}
-                        </div>
-                        <div className="candidate-info">
-                          <div className="candidate-name">{c.name}</div>
-                          <div className="candidate-email">{c.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="role-cell">{c.appliedRole?.title || '—'}</td>
-                    <td>
-                      {c.accessCode ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ 
-                            fontFamily: 'monospace', 
-                            fontSize: 14, 
-                            fontWeight: 700,
-                            color: '#e11d48',
-                            letterSpacing: '0.1em'
-                          }}>
-                            {c.accessCode}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(c.accessCode);
-                              toast.success('Access code copied!');
-                            }}
-                            style={{
-                              padding: '4px 8px',
-                              background: '#f1f5f9',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: 4,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              color: '#64748b'
-                            }}
-                            title="Copy access code"
-                          >
-                            <Copy size={12} />
-                          </button>
-                        </div>
-                      ) : '—'}
-                    </td>
-                    <td><Badge label={c.experienceLevel} variant="default" /></td>
-                    <td><Badge status={c.assessmentStatus} /></td>
-                    <td className={`score-cell ${c.overallScore >= 70 ? 'high' : c.overallScore >= 50 ? 'medium' : 'low'}`}>
-                      {c.overallScore != null ? `${c.overallScore}%` : '—'}
-                    </td>
-                    <td>{c.finalDecision ? <Badge status={c.finalDecision} /> : '—'}</td>
-                    <td>
-                      <div className="action-buttons">
-                        {canAssign(c.assessmentStatus) && (
-                          <button
-                            onClick={e => { e.stopPropagation(); setAssignTarget(c); }}
-                            className="action-btn assign-btn"
-                            title="Assign Assessment"
-                          >
-                            <ClipboardList size={14} /> Assign
-                          </button>
-                        )}
-                        <button
-                          onClick={e => { e.stopPropagation(); navigate(`/hr/candidates/${c._id}`); }}
-                          className="action-btn view-btn"
-                          title="View Details"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); setEditTarget(c); }}
-                          className="action-btn edit-btn"
-                          title="Edit Candidate"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); setDeleteTarget(c); }}
-                          className="action-btn delete-btn"
-                          title="Delete Candidate"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                {[...Array(6)].map((_, i) => <SkeletonRow key={i} />)}
+              </tbody>
+            </table>
+          </div>
+        ) : candidates.length === 0 ? (
+          /* ── Empty state ── */
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '48px 24px', gap: 12,
+          }}>
+            <div style={{
+              width: 60, height: 60, borderRadius: 16,
+              background: '#FFF1F2', display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Users size={26} style={{ color: '#F43F5E' }} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: '0 0 5px' }}>
+                {hasFilters ? 'No candidates match your filters' : 'No candidates yet'}
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748B', margin: 0 }}>
+                {hasFilters
+                  ? "Try adjusting your search or filters."
+                  : 'Add your first candidate to get started.'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              {hasFilters ? (
+                <button
+                  onClick={handleClearFilters}
+                  style={{
+                    padding: '7px 16px', borderRadius: 9,
+                    border: '1px solid #E2E8F0', background: '#fff',
+                    color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  Clear Filters
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setShowAdd(true)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '7px 16px', borderRadius: 9,
+                      border: 'none', background: '#F43F5E',
+                      color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={13} /> Add Candidate
+                  </button>
+                  <button
+                    onClick={() => setShowBulk(true)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '7px 16px', borderRadius: 9,
+                      border: '1px solid #E2E8F0', background: '#fff',
+                      color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    <UsersIcon size={13} /> Bulk Upload
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* ── Scrollable table ── */
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',   // ❗ ONLY this div scrolls
+            minHeight: 0,        // ❗ CRITICAL
+            overflowX: 'auto',
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #F1F5F9' }}>
+                  {['Candidate', 'Role', 'Experience', 'Access Code', 'Assessment', 'Score', 'Decision', 'Actions'].map(h => (
+                    <th key={h} style={{
+                      padding: '10px 16px', textAlign: 'left',
+                      fontSize: 11, fontWeight: 700, color: '#64748B',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
+                      whiteSpace: 'nowrap',
+                      // Sticky thead so column labels stay visible while scrolling
+                      position: 'sticky', top: 0,
+                      background: '#F8FAFC', zIndex: 1,
+                      boxShadow: '0 1px 0 #F1F5F9',
+                    }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {candidates.map(c => (
+                  <CandidateRow
+                    key={c._id}
+                    candidate={c}
+                    onEdit={setEditTarget}
+                    onDelete={setDeleteTarget}
+                    onAssign={setAssignTarget}
+                    onResults={setViewAssessmentsTarget}
+                  />
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* Modals */}
+      {/* ── Modals ── */}
       {showAdd && (
-        <AddCandidateModal
-          roles={roles}
-          onClose={() => setShowAdd(false)}
-          onSuccess={fetchCandidates}
-        />
+        <AddCandidateModal roles={roles} onClose={() => setShowAdd(false)} onSuccess={loadAll} />
       )}
-
       {editTarget && (
-        <EditCandidateModal
-          candidate={editTarget}
-          roles={roles}
-          onClose={() => setEditTarget(null)}
-          onSuccess={fetchCandidates}
-        />
+        <EditCandidateModal candidate={editTarget} roles={roles} onClose={() => setEditTarget(null)} onSuccess={loadAll} />
       )}
-
       {deleteTarget && (
-        <DeleteConfirmModal
-          candidate={deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={fetchCandidates}
-        />
+        <DeleteConfirmModal candidate={deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={loadAll} />
       )}
-
       {showBulk && (
-        <BulkUploadModal
-          onClose={() => setShowBulk(false)}
-          onSuccess={fetchCandidates}
-        />
+        <BulkUploadModal onClose={() => setShowBulk(false)} onSuccess={loadAll} />
       )}
-
       {assignTarget && (
-        <AssignModal
-          candidate={assignTarget}
-          onClose={() => setAssignTarget(null)}
-          onAssigned={handleAssigned}
-        />
+        <AssignModal candidate={assignTarget} onClose={() => setAssignTarget(null)} onAssigned={handleAssigned} />
       )}
-
-      {inviteData && <InviteModal data={inviteData} onClose={() => setInviteData(null)} />}
-    </div>
+      {viewAssessmentsTarget && (
+        <ViewAssessmentsModal candidate={viewAssessmentsTarget} onClose={() => setViewAssessmentsTarget(null)} />
+      )}
+    </PageShell>
   );
 }
+

@@ -6,6 +6,8 @@ const { validateRmsApiKey } = require('../../middleware/rmsAuth');
 
 // Candidate-facing routes (Token Auth via x-pipeline-token header)
 router.post('/session', validatePipelineToken, ctrl.createSession);
+router.get('/assigned-assessments', validatePipelineToken, ctrl.getAssignedAssessments);
+router.get('/assessment/:assessmentId/questions', validatePipelineToken, ctrl.getAssessmentQuestions);
 router.patch('/:pipelineId/step/save', validatePipelineToken, ctrl.saveStep);
 router.post('/:pipelineId/step/submit', validatePipelineToken, ctrl.submitStep);
 router.post('/:pipelineId/resume', validatePipelineToken, ctrl.resumePipeline);
@@ -17,9 +19,11 @@ router.post('/rms/session', validateRmsApiKey, ctrl.createRmsSession);
 router.post('/invite', protect, authorize('admin', 'hr'), ctrl.inviteCandidate);
 router.get('/analytics', protect, authorize('admin', 'hr'), ctrl.getAnalytics);
 router.get('/candidate/:candidateId', protect, authorize('admin', 'hr'), ctrl.getCandidatePipelines);
-router.get('/:pipelineId', protect, authorize('admin', 'hr'), ctrl.getPipelineRecord);
 router.post('/:pipelineId/override', protect, authorize('admin', 'hr'), ctrl.overrideStep);
+// NOTE: /:pipelineId/step/:stepType/data must come BEFORE /:pipelineId to avoid route shadowing
 router.get('/:pipelineId/step/:stepType/data', protect, authorize('admin', 'hr'), ctrl.getStepData);
+router.post('/:pipelineId/recompute-scores', protect, authorize('admin', 'hr'), ctrl.recomputePipelineScores);
+router.get('/:pipelineId', protect, authorize('admin', 'hr'), ctrl.getPipelineRecord);
 
 // Step Configuration routes (Admin only)
 router.post('/config', protect, authorize('admin'), ctrl.createStepConfiguration);

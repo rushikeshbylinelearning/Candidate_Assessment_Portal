@@ -2,64 +2,61 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import api from '../../utils/api';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
 import { Users, ClipboardCheck, UserCheck, Award, Clock, Target, TrendingUp, Plus, Settings, FileText, BarChart3 } from 'lucide-react';
 import '../../styles/Dashboard.css';
+import PageShell from '../../components/layout/PageShell';
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const COLORS = {
-  aptitude: '#F43F5E',
-  technical: '#2563EB',
-  reasoning: '#16A34A',
-  communication: '#D97706',
+  aptitude:      '#E5383B',
+  technical:     '#3B82F6',
+  reasoning:     '#10B981',
+  communication: '#F59E0B',
 };
 
-function StatCard({ icon: Icon, label, value, color = '#F43F5E', sub, delay = 0 }) {
+// Per-card accent colours and icon tints
+const CARD_THEMES = [
+  { accent: '#3B82F6', iconBg: '#EFF6FF', iconColor: '#3B82F6' }, // Total Candidates
+  { accent: '#F59E0B', iconBg: '#FFFBEB', iconColor: '#F59E0B' }, // Pending / Invited
+  { accent: '#10B981', iconBg: '#ECFDF5', iconColor: '#10B981' }, // Completed
+  { accent: '#8B5CF6', iconBg: '#F5F3FF', iconColor: '#8B5CF6' }, // Shortlisted
+  { accent: '#E5383B', iconBg: '#FEF2F2', iconColor: '#E5383B' }, // Hired
+  { accent: '#06B6D4', iconBg: '#ECFEFF', iconColor: '#06B6D4' }, // Avg Score
+];
+
+// Funnel stage colours (order matches API: Applied, Invited, In Progress, Completed, Shortlisted, Hired)
+const FUNNEL_COLORS = ['#E5383B', '#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#1A1A2E'];
+
+// ─── StatCard ─────────────────────────────────────────────────────────────────
+function StatCard({ icon: Icon, label, value, themeIndex = 0, sub, subMuted, delay = 0 }) {
+  const theme = CARD_THEMES[themeIndex];
   return (
-    <Card className="stat-card" style={{ animationDelay: `${delay}s` }}>
-      <div className="stat-icon" style={{ background: `${color}15` }}>
-        <Icon size={16} color={color} strokeWidth={2} />
+    <div
+      className="stat-card"
+      style={{
+        borderLeft: `4px solid ${theme.accent}`,
+        animationDelay: `${delay}s`,
+      }}
+    >
+      <div className="stat-icon" style={{ background: theme.iconBg }}>
+        <Icon size={15} color={theme.iconColor} strokeWidth={2} />
       </div>
       <div>
         <div className="stat-value">{value ?? '—'}</div>
         <div className="stat-label">{label}</div>
-        {sub && <div className="stat-sub">{sub}</div>}
+        {sub     && <div className="stat-sub">{sub}</div>}
+        {subMuted && <div className="stat-sub-muted">{subMuted}</div>}
       </div>
-    </Card>
+    </div>
   );
 }
 
-function QuickActionButton({ icon: Icon, label, onClick, color }) {
-  const handleMouseEnter = (e) => {
-    e.currentTarget.style.borderColor = color;
-    e.currentTarget.style.color = color;
-    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
-  };
-
-  const handleMouseLeave = (e) => {
-    e.currentTarget.style.borderColor = 'var(--color-border)';
-    e.currentTarget.style.color = 'var(--color-text-secondary)';
-    e.currentTarget.style.boxShadow = 'none';
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className="quick-action-btn"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <Icon size={16} strokeWidth={2} />
-      {label}
-    </button>
-  );
-}
-
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [overview, setOverview] = useState(null);
-  const [funnel, setFunnel] = useState([]);
-  const [performance, setPerformance] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [overview,     setOverview]     = useState(null);
+  const [funnel,       setFunnel]       = useState([]);
+  const [performance,  setPerformance]  = useState(null);
+  const [loading,      setLoading]      = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -75,186 +72,221 @@ export default function Dashboard() {
   }, []);
 
   if (loading) {
-    return <div className="dashboard-loading">Loading dashboard...</div>;
+    return (
+      <PageShell>
+        <div className="dashboard-loading">Loading dashboard...</div>
+      </PageShell>
+    );
   }
 
-  const perfData = performance 
-    ? Object.entries(performance).map(([k, v]) => ({ 
-        name: k.charAt(0).toUpperCase() + k.slice(1), 
+  // Skill performance chart data
+  const perfData = performance
+    ? Object.entries(performance).map(([k, v]) => ({
+        name:  k.charAt(0).toUpperCase() + k.slice(1),
         score: v,
-        color: COLORS[k] || 'var(--color-text-secondary)',
-      })) 
+        color: COLORS[k] || '#6B7280',
+      }))
     : [];
 
-  // Transform funnel data for horizontal progress bars
-  const funnelData = funnel.map(item => ({
+  // Funnel data with percentages
+  const funnelData = funnel.map((item, idx) => ({
     ...item,
     percentage: funnel[0]?.count ? Math.round((item.count / funnel[0].count) * 100) : 0,
+    color: FUNNEL_COLORS[idx] ?? '#6B7280',
   }));
 
   return (
-    <div>
-      {/* Squircle Header */}
-      <div className="squircle-header">
-        <div className="squircle-header-icon">
-          <BarChart3 size={20} />
+    <PageShell>
+      <div className="dashboard-page">
+
+      {/* ── Header card ─────────────────────────────────────── */}
+      <div className="dashboard-header-card">
+        <div className="dashboard-header-icon">
+          <BarChart3 size={22} />
         </div>
-        <div className="squircle-header-content">
+        <div className="dashboard-header-content">
           <h1>Dashboard</h1>
           <p>Hiring pipeline overview</p>
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* ── Metric cards ────────────────────────────────────── */}
       <div className="stats-grid">
-        <StatCard 
-          icon={Users} 
-          label="Total Candidates" 
-          value={overview?.totalCandidates} 
-          color="#F43F5E"
+        <StatCard
+          icon={Users}
+          label="Total Candidates"
+          value={overview?.totalCandidates}
+          themeIndex={0}
           delay={0}
         />
-        <StatCard 
-          icon={Clock} 
-          label="Pending" 
-          value={overview?.pendingAssessments} 
-          color="#D97706"
+        <StatCard
+          icon={Clock}
+          label="Pending"
+          value={overview?.pendingAssessments}
+          themeIndex={1}
           sub="Invited"
           delay={0.05}
         />
-        <StatCard 
-          icon={ClipboardCheck} 
-          label="Completed" 
-          value={overview?.completedAssessments} 
-          color="#2563EB"
+        <StatCard
+          icon={ClipboardCheck}
+          label="Completed"
+          value={overview?.completedAssessments}
+          themeIndex={2}
           delay={0.1}
         />
-        <StatCard 
-          icon={UserCheck} 
-          label="Shortlisted" 
-          value={overview?.shortlisted} 
-          color="#16A34A"
+        <StatCard
+          icon={UserCheck}
+          label="Shortlisted"
+          value={overview?.shortlisted}
+          themeIndex={3}
           delay={0.15}
         />
-        <StatCard 
-          icon={Award} 
-          label="Hired" 
-          value={overview?.hired} 
-          color="#7C3AED"
+        <StatCard
+          icon={Award}
+          label="Hired"
+          value={overview?.hired}
+          themeIndex={4}
           delay={0.2}
         />
-        <StatCard 
-          icon={Target} 
-          label="Avg Score" 
-          value={overview?.averageScore ? `${overview.averageScore}%` : '—'} 
-          color="#F43F5E" 
-          sub={`Pass rate: ${overview?.passRate ?? 0}%`}
+        <StatCard
+          icon={Target}
+          label="Avg Score"
+          value={overview?.averageScore ? `${overview.averageScore}%` : '—'}
+          themeIndex={5}
+          subMuted={`Pass rate: ${overview?.passRate ?? 0}%`}
           delay={0.25}
         />
       </div>
 
-      {/* Charts Row */}
+      {/* ── Charts row ──────────────────────────────────────── */}
       <div className="charts-grid">
+
         {/* Hiring Funnel */}
-        <Card className="chart-card" style={{ animationDelay: '0.3s' }}>
+        <div className="chart-card" style={{ animationDelay: '0.3s' }}>
           <div className="chart-header">
-            <div className="chart-icon" style={{ background: '#F43F5E15' }}>
-              <TrendingUp size={16} color="#F43F5E" strokeWidth={2} />
+            <div className="chart-icon" style={{ background: '#FEF2F2' }}>
+              <TrendingUp size={14} color="#E5383B" strokeWidth={2} />
             </div>
             <h3 className="chart-title">Hiring Funnel</h3>
           </div>
-          
+
           <div className="funnel-container">
             {funnelData.map((item, idx) => (
-              <div key={idx}>
+              <div key={idx} className="funnel-row">
                 <div className="funnel-item-header">
-                  <span className="funnel-stage">{item.stage}</span>
+                  <div className="funnel-label-group">
+                    <span className="funnel-dot" style={{ background: item.color }} />
+                    <span className="funnel-stage">{item.stage}</span>
+                  </div>
                   <span className="funnel-count">
-                    {item.count} <span className="funnel-percentage">({item.percentage}%)</span>
+                    {item.count}&nbsp;
+                    <span className="funnel-percentage">({item.percentage}%)</span>
                   </span>
                 </div>
                 <div className="funnel-bar">
-                  <div className="funnel-bar-fill" style={{ width: `${item.percentage}%` }} />
+                  <div
+                    className="funnel-bar-fill"
+                    style={{ width: `${item.percentage}%`, background: item.color }}
+                  />
                 </div>
               </div>
             ))}
           </div>
-        </Card>
+        </div>
 
         {/* Skill Performance */}
-        <Card className="chart-card" style={{ animationDelay: '0.35s' }}>
+        <div className="chart-card" style={{ animationDelay: '0.35s' }}>
           <div className="chart-header">
-            <div className="chart-icon" style={{ background: '#2563EB15' }}>
-              <BarChart3 size={16} color="#2563EB" strokeWidth={2} />
+            <div className="chart-icon" style={{ background: '#EFF6FF' }}>
+              <BarChart3 size={14} color="#3B82F6" strokeWidth={2} />
             </div>
             <h3 className="chart-title">Skill Performance</h3>
           </div>
-          
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={perfData} barGap={8}>
-              <XAxis 
-                dataKey="name" 
-                tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)', fontWeight: 500 }} 
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis 
-                domain={[0, 100]} 
-                tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)', fontWeight: 500 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip 
-                formatter={(v) => `${v}%`}
-                contentStyle={{
-                  background: 'var(--color-background-primary)',
-                  border: '0.5px solid var(--color-border)',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  padding: '8px 12px',
-                }}
-              />
-              <Bar dataKey="score" radius={[6, 6, 0, 0]}>
-                {perfData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} opacity={0.75} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
+
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={perfData} barGap={8}>
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 400 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 400 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `${v}`}
+                />
+                <Tooltip
+                  formatter={(v) => `${v}%`}
+                  contentStyle={{
+                    background: '#FFFFFF',
+                    border: '1px solid #E8E4DF',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    padding: '6px 10px',
+                  }}
+                />
+                <Bar dataKey="score" radius={[4, 4, 0, 0]}>
+                  {perfData.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} opacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Skill legend */}
+          <div className="skill-legend">
+            {perfData.map((entry, i) => (
+              <div key={i} className="skill-legend-item">
+                <span className="skill-legend-dot" style={{ background: entry.color }} />
+                {entry.name}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="quick-actions-card" style={{ animationDelay: '0.4s' }}>
-        <h3 className="quick-actions-title">Quick actions</h3>
+      {/* ── Quick Actions ────────────────────────────────────── */}
+      <div className="quick-actions-card" style={{ animationDelay: '0.4s' }}>
+        <h3 className="quick-actions-title">Quick Actions</h3>
         <div className="quick-actions-grid">
-          <QuickActionButton
-            icon={Plus}
-            label="Add Candidate"
+          <button
+            className="quick-action-btn-primary"
             onClick={() => navigate('/hr/candidates')}
-            color="#F43F5E"
-          />
-          <QuickActionButton
-            icon={Settings}
-            label="Manage Roles"
+          >
+            <Plus size={15} strokeWidth={2} />
+            Add Candidate
+          </button>
+          <button
+            className="quick-action-btn"
             onClick={() => navigate('/hr/roles')}
-            color="#2563EB"
-          />
-          <QuickActionButton
-            icon={FileText}
-            label="Question Bank"
-            onClick={() => navigate('/hr/questions')}
-            color="#16A34A"
-          />
-          <QuickActionButton
-            icon={BarChart3}
-            label="View Analytics"
+          >
+            <Settings size={15} strokeWidth={2} />
+            Manage Roles
+          </button>
+          <button
+            className="quick-action-btn"
+            onClick={() => navigate('/hr/assessments/create')}
+          >
+            <FileText size={15} strokeWidth={2} />
+            Question Bank
+          </button>
+          <button
+            className="quick-action-btn"
             onClick={() => navigate('/hr/analytics')}
-            color="#7C3AED"
-          />
+          >
+            <BarChart3 size={15} strokeWidth={2} />
+            View Analytics
+          </button>
         </div>
-      </Card>
+      </div>
+
     </div>
+    </PageShell>
   );
 }

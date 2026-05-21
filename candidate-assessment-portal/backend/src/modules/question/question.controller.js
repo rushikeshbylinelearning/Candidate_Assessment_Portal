@@ -23,6 +23,13 @@ exports.createQuestion = async (req, res) => {
 };
 
 exports.updateQuestion = async (req, res) => {
+  // If changing to a text-based question type, clear options and correctAnswer
+  const textBasedTypes = ['short_answer', 'scenario', 'logic', 'coding'];
+  if (req.body.type && textBasedTypes.includes(req.body.type)) {
+    req.body.options = [];
+    req.body.correctAnswer = null;
+  }
+  
   const question = await Question.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
   if (!question) return res.status(404).json({ message: 'Question not found' });
   res.json(question);

@@ -1,9 +1,8 @@
 const Candidate = require('./candidate.model');
-const Token = require('../token/token.model');
 const Assessment = require('../assessment/assessment.model');
 const ResumeData = require('../resume/resume.model');
 const { parseResume } = require('../resume/parser.service');
-const { generateAssessmentToken, generateAccessCode } = require('../../utils/generateToken');
+const { generateAccessCode } = require('../../utils/generateToken');
 const { log } = require('../../utils/logger');
 const path = require('path');
 
@@ -26,7 +25,68 @@ exports.getCandidates = async (req, res) => {
       .sort('-createdAt'),
     Candidate.countDocuments(filter),
   ]);
-  res.json({ candidates, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+  
+  // Enrich with assignment count and computed assessment status
+  const PipelineRecord = require('../pipeline/pipeline.model');
+  const enrichedCandidates = await Promise.all(
+    candidates.map(async (c) => {
+      const pipeline = await PipelineRecord.findOne({ 
+        candidateId: c._id, 
+        roleId: c.appliedRole?._id 
+      });
+      
+      let assignmentCount = 0;
+      let hasCompletedSteps = false;
+      let allAssignedCompleted = false;
+
+      if (pipeline && pipeline.assignedAssessments) {
+        const assignedMap = pipeline.assignedAssessments;
+        const entries = assignedMap instanceof Map 
+          ? Array.from(assignedMap.entries()) 
+          : Object.entries(assignedMap);
+        
+        const assignedStepTypes = entries.filter(([, id]) => id).map(([stepType]) => stepType);
+        assignmentCount = assignedStepTypes.length;
+
+        if (assignmentCount > 0) {
+          // Check if every assigned step is COMPLETED
+          allAssignedCompleted = assignedStepTypes.every(stepType => {
+            const stepStatus = pipeline.stepStatus?.[stepType];
+            return stepStatus?.status === 'COMPLETED' || stepStatus?.status === 'SKIPPED';
+          });
+        }
+      }
+
+      if (pipeline && pipeline.completedSteps && pipeline.completedSteps.length > 0) {
+        hasCompletedSteps = true;
+      }
+
+      // Compute the display assessmentStatus:
+      // If all assigned assessments are done → completed
+      // If pipeline is fully finished → completed
+      // Otherwise use the stored value
+      let computedStatus = c.assessmentStatus;
+      if (allAssignedCompleted && assignmentCount > 0) {
+        computedStatus = 'completed';
+      } else if (pipeline?.status === 'FINISHED') {
+        computedStatus = 'completed';
+      }
+
+      return {
+        ...c.toObject(),
+        assignmentCount,
+        hasCompletedSteps,
+        assessmentStatus: computedStatus,
+      };
+    })
+  );
+  
+  res.json({ 
+    candidates: enrichedCandidates, 
+    total, 
+    page: parseInt(page), 
+    pages: Math.ceil(total / parseInt(limit)) 
+  });
 };
 
 exports.getCandidate = async (req, res) => {
@@ -97,7 +157,7 @@ exports.createCandidate = async (req, res) => {
       console.log(`[createCandidate] Triggering async parsing...`);
       
       // Parse asynchronously
-      parseResumeAsync(resumeData._id, req.file.path, fileType);
+      parseResumeAsync(resumeData._id, req.file.path, fileType, candidate);
     }
     
     res.status(201).json(candidate);
@@ -120,7 +180,7 @@ exports.updateCandidate = async (req, res) => {
       req.params.id, 
       updateData, 
       { new: true, runValidators: true }
-    );
+    ).populate('appliedRole');
     
     if (!candidate) return res.status(404).json({ message: 'Candidate not found' });
     
@@ -145,7 +205,7 @@ exports.updateCandidate = async (req, res) => {
       }
       
       // Parse asynchronously
-      parseResumeAsync(resumeData._id, req.file.path, fileType);
+      parseResumeAsync(resumeData._id, req.file.path, fileType, candidate);
     }
     
     res.json(candidate);
@@ -193,106 +253,82 @@ exports.updateStatus = async (req, res) => {
 };
 
 exports.inviteCandidate = async (req, res) => {
-  const candidate = await Candidate.findById(req.params.id).populate('appliedRole');
-  if (!candidate) return res.status(404).json({ message: 'Candidate not found' });
+  try {
+    const candidate = await Candidate.findById(req.params.id).populate('appliedRole');
+    if (!candidate) return res.status(404).json({ message: 'Candidate not found' });
 
-  // Block re-inviting candidates who are actively in progress or already completed
-  if (['in_progress', 'completed'].includes(candidate.assessmentStatus)) {
-    return res.status(400).json({ message: `Cannot assign assessment to a candidate with status "${candidate.assessmentStatus}"` });
-  }
+    if (!candidate.appliedRole) {
+      return res.status(400).json({ message: 'Candidate has no applied role assigned.' });
+    }
 
-  const PipelineRecord = require('../pipeline/pipeline.model');
-  const StepConfig = require('../pipeline/stepConfig.model');
-  
-  // Check if pipeline already exists
-  let pipeline = await PipelineRecord.findOne({
-    candidateId: candidate._id,
-    roleId: candidate.appliedRole._id
-  });
-  
-  // If no pipeline exists, create one
-  if (!pipeline) {
-    const stepConfig = await StepConfig.findOne({ roleId: candidate.appliedRole._id });
-    
-    if (!stepConfig || !stepConfig.steps || stepConfig.steps.length === 0) {
-      return res.status(400).json({ 
-        message: 'No evaluation pipeline configured for this role. Please configure steps first.' 
+    const PipelineRecord = require('../pipeline/pipeline.model');
+
+    // Check if pipeline already exists
+    let pipeline = await PipelineRecord.findOne({
+      candidateId: candidate._id,
+      roleId: candidate.appliedRole._id
+    });
+
+    // If no pipeline exists, create a single-step pipeline (ROLE_BASED_ASSESSMENT only)
+    if (!pipeline) {
+      pipeline = await PipelineRecord.create({
+        candidateId: candidate._id,
+        roleId: candidate.appliedRole._id,
+        currentStep: 'ROLE_BASED_ASSESSMENT',
+        stepConfigSnapshot: [
+          { stepType: 'ROLE_BASED_ASSESSMENT', order: 1, required: true, skip: false, scoringWeight: 100, timeLimitMins: null },
+        ],
+        stepStatus: {
+          ROLE_BASED_ASSESSMENT: { status: 'NOT_STARTED' },
+        },
+        aggregateScore: null,
       });
     }
-    
-    // Build step status map
-    const stepStatus = {};
-    stepConfig.steps.forEach(sc => {
-      stepStatus[sc.stepType] = {
-        status: 'NOT_STARTED',
-        score: null,
-        submittedAt: null,
-        dataId: null
-      };
-    });
-    
-    // Create pipeline
-    pipeline = await PipelineRecord.create({
-      candidateId: candidate._id,
-      roleId: candidate.appliedRole._id,
-      currentStep: stepConfig.steps[0].stepType,
-      stepConfigSnapshot: stepConfig.steps.map((s, i) => ({
-        stepType: s.stepType,
-        order: s.order || i + 1,
-        required: s.required,
-        skip: s.skip,
-        scoringWeight: s.scoringWeight,
-        timeLimitMins: s.timeLimitMins || null,
-      })),
-      stepStatus,
-      aggregateScore: null
-    });
-  }
-  
-  // Allow passing a specific assessmentId for the ROLE_BASED_ASSESSMENT step
-  if (req.body.assessmentId) {
-    const assessment = await Assessment.findById(req.body.assessmentId);
-    if (!assessment) return res.status(404).json({ message: 'Assessment not found' });
-    
-    // Store the assessment ID in the pipeline for later use
-    if (!pipeline.assignedAssessments) {
-      pipeline.assignedAssessments = {};
+
+    // Support assigning multiple assessments: { assessmentIds: { STEP_TYPE: id, ... } }
+    // Also support legacy single assessmentId (assigns to ROLE_BASED_ASSESSMENT)
+    const { assessmentIds, assessmentId } = req.body;
+
+    const assignmentsToProcess = assessmentIds || (assessmentId ? { ROLE_BASED_ASSESSMENT: assessmentId } : null);
+
+    if (assignmentsToProcess && typeof assignmentsToProcess === 'object') {
+      for (const [stepType, asmId] of Object.entries(assignmentsToProcess)) {
+        const assessment = await Assessment.findById(asmId);
+        if (!assessment) {
+          return res.status(404).json({ message: `Assessment not found: ${asmId}` });
+        }
+        pipeline.assignedAssessments.set(stepType, asmId);
+      }
+      await pipeline.save();
     }
-    pipeline.assignedAssessments.ROLE_BASED_ASSESSMENT = req.body.assessmentId;
-    await pipeline.save();
-  }
 
-  // Find or create token for this pipeline
-  let token = await Token.findOne({
-    candidateId: candidate._id,
-    roleId: candidate.appliedRole._id,
-    expiresAt: { $gt: new Date() }
-  });
-  
-  if (!token) {
-    const tokenValue = generateAssessmentToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    // Update candidate status to invited if not already further along
+    if (!['in_progress', 'completed'].includes(candidate.assessmentStatus)) {
+      candidate.assessmentStatus = 'invited';
+    }
 
-    token = await Token.create({
-      value: tokenValue,
-      candidateId: candidate._id,
-      roleId: candidate.appliedRole._id,
-      expiresAt,
-      maxUses: 999, // Allow multiple uses for pipeline
-      createdBy: req.user._id,
+    const assignedCount = assignmentsToProcess ? Object.keys(assignmentsToProcess).length : 0;
+    candidate.timeline.push({
+      event: 'assessment_assigned',
+      description: assignedCount > 0
+        ? `${assignedCount} assessment(s) assigned to pipeline`
+        : 'Pipeline updated',
+      performedBy: req.user._id
     });
+    await candidate.save();
+
+    res.json({
+      success: true,
+      message: assignedCount > 0
+        ? `${assignedCount} assessment(s) assigned successfully`
+        : 'Pipeline updated successfully',
+      pipelineId: pipeline._id,
+      assignedAssessments: Object.fromEntries(pipeline.assignedAssessments || new Map()),
+    });
+  } catch (error) {
+    console.error('[inviteCandidate] Error:', error);
+    res.status(500).json({ message: error.message || 'Failed to assign assessments' });
   }
-
-  candidate.assessmentStatus = 'invited';
-  candidate.timeline.push({ 
-    event: 'invited', 
-    description: req.body.assessmentId ? 'Assessment assigned and invitation sent' : 'Pipeline invitation sent', 
-    performedBy: req.user._id 
-  });
-  await candidate.save();
-
-  const assessmentLink = `${process.env.CLIENT_URL}/pipeline/${token.value}`;
-  res.json({ token: token.value, assessmentLink, expiresAt });
 };
 
 exports.getTimeline = async (req, res) => {
@@ -301,25 +337,159 @@ exports.getTimeline = async (req, res) => {
   res.json(candidate.timeline);
 };
 
+exports.getAssignedAssessments = async (req, res) => {
+  try {
+    const candidate = await Candidate.findById(req.params.id).populate('appliedRole');
+    if (!candidate) return res.status(404).json({ message: 'Candidate not found' });
+
+    const PipelineRecord = require('../pipeline/pipeline.model');
+    const Assessment = require('../assessment/assessment.model');
+
+    // Find pipeline for this candidate
+    const pipeline = await PipelineRecord.findOne({
+      candidateId: candidate._id,
+      roleId: candidate.appliedRole?._id
+    });
+
+    if (!pipeline || !pipeline.assignedAssessments) {
+      return res.json({ assignments: [] });
+    }
+
+    // Convert Map to array of { stepType, assessmentId, assessment, status }
+    const assignedMap = pipeline.assignedAssessments;
+    const entries = assignedMap instanceof Map 
+      ? Array.from(assignedMap.entries()) 
+      : Object.entries(assignedMap);
+
+    const assignments = [];
+    for (const [stepType, assessmentId] of entries) {
+      if (assessmentId) {
+        const assessment = await Assessment.findById(assessmentId);
+        const stepStatus = pipeline.stepStatus[stepType];
+        
+        assignments.push({
+          stepType,
+          assessmentId: assessmentId.toString(),
+          assessment: assessment ? {
+            _id: assessment._id,
+            title: assessment.title,
+            duration: assessment.duration,
+            totalQuestions: assessment.totalQuestions,
+          } : null,
+          status: stepStatus?.status || 'NOT_STARTED',
+          isCompleted: stepStatus?.status === 'COMPLETED',
+          isInProgress: stepStatus?.status === 'IN_PROGRESS',
+        });
+      }
+    }
+
+    res.json({ assignments });
+  } catch (error) {
+    console.error('[getAssignedAssessments] Error:', error);
+    res.status(500).json({ message: error.message || 'Failed to fetch assigned assessments' });
+  }
+};
+
+exports.removeAssessment = async (req, res) => {
+  try {
+    const { assessmentId } = req.body;
+    const candidate = await Candidate.findById(req.params.id).populate('appliedRole');
+    if (!candidate) return res.status(404).json({ message: 'Candidate not found' });
+
+    const PipelineRecord = require('../pipeline/pipeline.model');
+    const pipeline = await PipelineRecord.findOne({
+      candidateId: candidate._id,
+      roleId: candidate.appliedRole?._id
+    });
+
+    if (!pipeline) {
+      return res.status(404).json({ message: 'Pipeline not found' });
+    }
+
+    // Find which step type has this assessment
+    const assignedMap = pipeline.assignedAssessments;
+    const entries = assignedMap instanceof Map 
+      ? Array.from(assignedMap.entries()) 
+      : Object.entries(assignedMap);
+
+    let removedStepType = null;
+    for (const [stepType, asmId] of entries) {
+      if (asmId && asmId.toString() === assessmentId) {
+        // Check if assessment is completed or in progress
+        const stepStatus = pipeline.stepStatus[stepType];
+        if (stepStatus?.status === 'COMPLETED') {
+          return res.status(400).json({ 
+            message: 'Cannot remove completed assessment',
+            cannotRemove: true 
+          });
+        }
+        if (stepStatus?.status === 'IN_PROGRESS') {
+          return res.status(400).json({ 
+            message: 'Assessment is in progress. Removing it will discard progress.',
+            requiresConfirmation: true 
+          });
+        }
+
+        // Remove the assessment
+        pipeline.assignedAssessments.delete(stepType);
+        removedStepType = stepType;
+        break;
+      }
+    }
+
+    if (!removedStepType) {
+      return res.status(404).json({ message: 'Assessment not found in pipeline' });
+    }
+
+    await pipeline.save();
+
+    candidate.timeline.push({
+      event: 'assessment_removed',
+      description: `Assessment removed from ${removedStepType}`,
+      performedBy: req.user._id
+    });
+    await candidate.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Assessment removed successfully',
+      removedStepType 
+    });
+  } catch (error) {
+    console.error('[removeAssessment] Error:', error);
+    res.status(500).json({ message: error.message || 'Failed to remove assessment' });
+  }
+};
+
 /**
  * Parse resume asynchronously (helper function)
  */
-async function parseResumeAsync(resumeDataId, filePath, fileType) {
+async function parseResumeAsync(resumeDataId, filePath, fileType, candidateDoc) {
   try {
     console.log(`[parseResumeAsync] Starting parsing for resumeDataId: ${resumeDataId}`);
     console.log(`[parseResumeAsync] File path: ${filePath}`);
     console.log(`[parseResumeAsync] File type: ${fileType}`);
-    
+
     const parsedData = await parseResume(filePath, fileType);
-    
+
     console.log(`[parseResumeAsync] Parsing completed. Status: ${parsedData.parsingStatus}`);
-    
+
     await ResumeData.findByIdAndUpdate(resumeDataId, {
       ...parsedData,
       parsingStatus: 'completed',
     });
-    
+
     console.log(`[parseResumeAsync] Resume data updated successfully: ${resumeDataId}`);
+
+    // Run skill matching after successful parse
+    if (candidateDoc && candidateDoc.appliedRole) {
+      try {
+        const { runSkillMatch } = require('../resume/resume.controller');
+        await runSkillMatch(candidateDoc._id, candidateDoc.appliedRole);
+      } catch (matchErr) {
+        console.error('[parseResumeAsync] Skill match error:', matchErr.message);
+      }
+    }
   } catch (error) {
     console.error(`[parseResumeAsync] Parsing error:`, error);
     await ResumeData.findByIdAndUpdate(resumeDataId, {

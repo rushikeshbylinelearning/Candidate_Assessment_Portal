@@ -1,281 +1,424 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Zap, List, ChevronRight, ClipboardList,
-  Clock, Users, CheckCircle, XCircle, FileUp,
+  Zap, List, FileUp, ChevronRight, ClipboardList,
+  Clock, Users, CheckCircle, XCircle, Search,
+  LayoutGrid, LayoutList, Plus,
 } from 'lucide-react';
 import api from '../../utils/api';
+import PageShell from '../../components/layout/PageShell';
+import '../../styles/CreateAssessment.css';
+
+// ── Mode definitions ──────────────────────────────────────────────────────────
+const MODES = [
+  {
+    key: 'adaptive',
+    icon: Zap,
+    iconBg: '#EFF6FF',
+    iconColor: '#2563EB',
+    accentColor: '#2563EB',
+    badge: 'AI-Powered',
+    badgeBg: '#DBEAFE',
+    badgeColor: '#1D4ED8',
+    title: 'Adaptive Mode',
+    subtitle: 'Difficulty adjusts in real-time based on candidate responses.',
+    path: '/hr/assessments/create/adaptive',
+  },
+  {
+    key: 'standard',
+    icon: List,
+    iconBg: '#F0FDF4',
+    iconColor: '#16A34A',
+    accentColor: '#16A34A',
+    badge: 'Fixed Set',
+    badgeBg: '#DCFCE7',
+    badgeColor: '#15803D',
+    title: 'Standard Mode',
+    subtitle: 'Hand-pick questions from the bank. Every candidate gets the same set.',
+    path: '/hr/assessments/create/standard',
+  },
+  {
+    key: 'pdf',
+    icon: FileUp,
+    iconBg: '#FDF4FF',
+    iconColor: '#9333EA',
+    accentColor: '#9333EA',
+    badge: 'New',
+    badgeBg: '#FAE8FF',
+    badgeColor: '#7E22CE',
+    title: 'Import from PDF',
+    subtitle: 'Upload a document and auto-generate questions from its content.',
+    path: '/hr/assessments/create/pdf',
+  },
+];
+
+// ── Status pill ───────────────────────────────────────────────────────────────
+function StatusPill({ active }) {
+  return (
+    <span className={`ca-status-pill ${active ? 'ca-status-pill--active' : 'ca-status-pill--inactive'}`}>
+      {active ? <CheckCircle size={11} /> : <XCircle size={11} />}
+      {active ? 'Active' : 'Inactive'}
+    </span>
+  );
+}
+
+// ── Mode badge ────────────────────────────────────────────────────────────────
+function ModeBadge({ mode }) {
+  const map = {
+    adaptive: { bg: '#DBEAFE', color: '#1D4ED8', label: 'Adaptive' },
+    standard: { bg: '#DCFCE7', color: '#15803D', label: 'Standard' },
+    pdf:      { bg: '#FAE8FF', color: '#7E22CE', label: 'PDF Import' },
+  };
+  const s = map[mode] || { bg: '#F1F5F9', color: '#64748B', label: mode || '—' };
+  return (
+    <span
+      className="ca-mode-badge"
+      style={{ background: s.bg, color: s.color }}
+    >
+      {s.label}
+    </span>
+  );
+}
 
 export default function CreateAssessment() {
   const navigate = useNavigate();
-  const [assessments, setAssessments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [assessments, setAssessments]   = useState([]);
+  const [filtered, setFiltered]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [search, setSearch]             = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // all | active | inactive
+  const [viewMode, setViewMode]         = useState('table'); // table | grid
 
   useEffect(() => {
     api.get('/assessments')
-      .then(res => setAssessments(res.data))
+      .then(res => { setAssessments(res.data); setFiltered(res.data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  const modes = [
-    {
-      key: 'adaptive',
-      icon: Zap,
-      iconBg: 'linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%)',
-      iconColor: '#2563eb',
-      accentColor: '#2563eb',
-      badgeBg: '#dbeafe',
-      badgeColor: '#1d4ed8',
-      badge: 'AI-Powered',
-      title: 'Adaptive Mode',
-      subtitle: 'Dynamic question selection',
-      description:
-        "Questions are selected dynamically based on candidate responses. Difficulty adjusts automatically to match the candidate's performance level.",
-      cta: 'Select Adaptive Mode',
-      path: '/hr/assessments/create/adaptive',
-    },
-    {
-      key: 'standard',
-      icon: List,
-      iconBg: 'linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%)',
-      iconColor: '#16a34a',
-      accentColor: '#16a34a',
-      badgeBg: '#dcfce7',
-      badgeColor: '#15803d',
-      badge: 'Fixed Set',
-      title: 'Standard Mode',
-      subtitle: 'Pre-selected questions',
-      description:
-        'Questions are pre-selected from the question bank. All candidates receive the same set of questions in a fixed order.',
-      cta: 'Select Standard Mode',
-      path: '/hr/assessments/create/standard',
-    },
-    {
-      key: 'pdf',
-      icon: FileUp,
-      iconBg: 'linear-gradient(135deg,#fdf4ff 0%,#fae8ff 100%)',
-      iconColor: '#9333ea',
-      accentColor: '#9333ea',
-      badgeBg: '#fae8ff',
-      badgeColor: '#7e22ce',
-      badge: 'New',
-      title: 'Import from PDF',
-      subtitle: 'Upload & auto-generate',
-      description:
-        'Upload a PDF or Word document (evaluation form, question paper, etc.) and the system will automatically extract and create questions — MCQ, checkbox, or descriptive.',
-      cta: 'Import from PDF',
-      path: '/hr/assessments/create/pdf',
-    },
+  // Filter whenever search or status changes
+  useEffect(() => {
+    let list = assessments;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(a =>
+        a.title?.toLowerCase().includes(q) ||
+        a.roleId?.title?.toLowerCase().includes(q) ||
+        a.roleId?.department?.toLowerCase().includes(q)
+      );
+    }
+    if (statusFilter === 'active')   list = list.filter(a => a.active);
+    if (statusFilter === 'inactive') list = list.filter(a => !a.active);
+    setFiltered(list);
+  }, [search, statusFilter, assessments]);
+
+  const activeCount   = assessments.filter(a => a.active).length;
+  const inactiveCount = assessments.filter(a => !a.active).length;
+
+  const STATS = [
+    { label: 'Total',    value: assessments.length, color: 'rgba(255,255,255,0.9)' },
+    { label: 'Active',   value: activeCount,        color: '#4ADE80' },
+    { label: 'Inactive', value: inactiveCount,      color: 'rgba(255,255,255,0.4)' },
+  ];
+
+  const FILTERS = [
+    { key: 'all',      label: 'All' },
+    { key: 'active',   label: 'Active' },
+    { key: 'inactive', label: 'Inactive' },
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
+    <PageShell scrollable noPad>
+      <div className="ca-page">
 
-        {/* Back */}
-        <button
-          onClick={() => navigate('/hr/questions')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            color: '#64748b', background: 'none', border: 'none',
-            cursor: 'pointer', fontSize: 14, marginBottom: 32,
-            padding: '6px 0',
-          }}
-        >
-          <ArrowLeft size={16} /> Back to Question Bank
-        </button>
-
-        {/* Header */}
-        <div style={{ marginBottom: 36 }}>
-          <h1 style={{ fontSize: 30, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>
-            Create New Assessment
-          </h1>
-          <p style={{ color: '#64748b', marginTop: 8, fontSize: 15 }}>
-            Choose how you'd like to build your assessment
-          </p>
-        </div>
-
-        {/* Mode Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 52 }}>
-          {modes.map(mode => {
-            const Icon = mode.icon;
-            return (
-              <div
-                key={mode.key}
-                onClick={() => navigate(mode.path)}
-                style={{
-                  background: '#fff',
-                  borderRadius: 20,
-                  border: '1.5px solid #e2e8f0',
-                  padding: '28px 24px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                  cursor: 'pointer',
-                  transition: 'all 0.22s cubic-bezier(.4,0,.2,1)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0,
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.boxShadow = `0 12px 32px rgba(0,0,0,0.12)`;
-                  e.currentTarget.style.borderColor = mode.accentColor + '55';
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.05)';
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                {/* Decorative top bar */}
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-                  background: mode.accentColor, borderRadius: '20px 20px 0 0',
-                }} />
-
-                {/* Badge */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, letterSpacing: '0.5px',
-                    background: mode.badgeBg, color: mode.badgeColor,
-                    padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase',
-                  }}>
-                    {mode.badge}
-                  </span>
-                </div>
-
-                {/* Icon + title */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14,
-                    background: mode.iconBg,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    boxShadow: `0 4px 12px ${mode.accentColor}22`,
-                  }}>
-                    <Icon size={26} color={mode.iconColor} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{mode.title}</div>
-                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3, fontWeight: 500 }}>{mode.subtitle}</div>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <p style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.75, marginBottom: 24, flexGrow: 1 }}>
-                  {mode.description}
-                </p>
-
-                {/* CTA */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  color: mode.accentColor, fontWeight: 700, fontSize: 14,
-                  paddingTop: 16, borderTop: '1px solid #f1f5f9',
-                }}>
-                  {mode.cta} <ChevronRight size={16} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Created Assessments */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>Created Assessments</h2>
-            {assessments.length > 0 && (
-              <span style={{
-                fontSize: 12, fontWeight: 600, background: '#f1f5f9',
-                color: '#64748b', padding: '4px 12px', borderRadius: 20,
-              }}>
-                {assessments.length} total
-              </span>
-            )}
+        {/* ══ PAGE HEADER ══════════════════════════════════════════════════ */}
+        <div className="ca-header">
+          {/* Icon bubble */}
+          <div className="ca-header__icon">
+            <ClipboardList size={20} />
           </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '48px 0', color: '#94a3b8', fontSize: 14 }}>
-              <div style={{ width: 32, height: 32, border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-              Loading assessments...
-            </div>
-          ) : assessments.length === 0 ? (
-            <div style={{
-              textAlign: 'center', padding: '56px 0',
-              background: '#fff', borderRadius: 20,
-              border: '1.5px dashed #e2e8f0',
-            }}>
-              <ClipboardList size={40} color="#cbd5e1" style={{ margin: '0 auto 14px' }} />
-              <p style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500 }}>No assessments created yet</p>
-              <p style={{ color: '#cbd5e1', fontSize: 13, marginTop: 4 }}>Choose a mode above to get started</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {assessments.map(a => (
-                <div
-                  key={a._id}
-                  style={{
-                    background: '#fff',
-                    border: '1.5px solid #e2e8f0',
-                    borderRadius: 14,
-                    padding: '16px 20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                    cursor: 'pointer',
-                    transition: 'all 0.18s',
-                  }}
+          {/* Title + subtitle */}
+          <div className="ca-header__text">
+            <h1 className="ca-header__title">Assessments</h1>
+            <p className="ca-header__subtitle">
+              Create and manage assessments for your candidates
+            </p>
+          </div>
+
+          {/* Stats */}
+          <div className="ca-header__stats">
+            {STATS.map(s => (
+              <div key={s.label} className="ca-stat-chip">
+                <div className="ca-stat-chip__value" style={{ color: s.color }}>{s.value}</div>
+                <div className="ca-stat-chip__label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <div className="ca-header__actions">
+            <button
+              className="ca-btn-ghost"
+              onClick={() => navigate('/hr/questions')}
+            >
+              <List size={14} /> Questions
+            </button>
+            <button
+              className="ca-btn-primary"
+              onClick={() => navigate('/hr/assessments/create/adaptive')}
+            >
+              <Plus size={14} /> New Assessment
+            </button>
+          </div>
+        </div>
+
+        {/* ══ CREATE NEW — 3 MODE CARDS ════════════════════════════════════ */}
+        <div className="ca-create-section">
+          <div className="ca-section-label">Create New Assessment</div>
+          <div className="ca-mode-grid">
+            {MODES.map(mode => {
+              const Icon = mode.icon;
+              return (
+                <button
+                  key={mode.key}
+                  className="ca-mode-card"
+                  onClick={() => navigate(mode.path)}
                   onMouseEnter={e => {
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.09)';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.borderColor = mode.accentColor + '66';
+                    e.currentTarget.style.boxShadow = `0 4px 16px ${mode.accentColor}18`;
+                    e.currentTarget.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.05)';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.borderColor = '#E2E8F0';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }}
-                  onClick={() => navigate(`/hr/assessments/${a._id}`)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{
-                      width: 42, height: 42, borderRadius: 11,
-                      background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
-                      <ClipboardList size={20} color="#2563eb" />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>{a.title}</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-                        {a.roleId?.title || 'No role'}{a.roleId?.department ? ` · ${a.roleId.department}` : ''}
-                      </div>
-                    </div>
+                  {/* Left accent bar */}
+                  <div
+                    className="ca-mode-card__accent-bar"
+                    style={{ background: mode.accentColor }}
+                  />
+
+                  {/* Icon */}
+                  <div
+                    className="ca-mode-card__icon"
+                    style={{ background: mode.iconBg }}
+                  >
+                    <Icon size={20} color={mode.iconColor} strokeWidth={2} />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 13 }}>
-                      <Clock size={13} /> {a.duration} min
+                  {/* Text */}
+                  <div className="ca-mode-card__body">
+                    <div className="ca-mode-card__title-row">
+                      <span className="ca-mode-card__title">{mode.title}</span>
+                      <span
+                        className="ca-mode-card__badge"
+                        style={{ background: mode.badgeBg, color: mode.badgeColor }}
+                      >
+                        {mode.badge}
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 13 }}>
-                      <Users size={13} /> {a.totalQuestions} questions
+                    <p className="ca-mode-card__subtitle">{mode.subtitle}</p>
+                  </div>
+
+                  {/* Arrow */}
+                  <ChevronRight size={15} color="#CBD5E1" style={{ flexShrink: 0 }} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ══ ASSESSMENTS TABLE ════════════════════════════════════════════ */}
+        <div className="ca-table-container">
+
+          {/* Toolbar */}
+          <div className="ca-toolbar">
+            <span className="ca-toolbar__title">Created Assessments</span>
+
+            {/* Search */}
+            <div className="ca-search-wrap">
+              <Search size={13} className="ca-search-wrap__icon" />
+              <input
+                className="ca-search-input"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name or role…"
+              />
+            </div>
+
+            {/* Status filter pills */}
+            <div className="ca-filter-pills">
+              {FILTERS.map(f => (
+                <button
+                  key={f.key}
+                  className={`ca-filter-pill ${statusFilter === f.key ? 'ca-filter-pill--active' : 'ca-filter-pill--inactive'}`}
+                  onClick={() => setStatusFilter(f.key)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="ca-toolbar__spacer" />
+
+            {/* Result count */}
+            {!loading && (
+              <span className="ca-toolbar__count">
+                {filtered.length} of {assessments.length}
+              </span>
+            )}
+
+            {/* View toggle */}
+            <div className="ca-view-toggle">
+              {[
+                { key: 'table', Icon: LayoutList },
+                { key: 'grid',  Icon: LayoutGrid },
+              ].map(({ key, Icon }) => (
+                <button
+                  key={key}
+                  className={`ca-view-toggle__btn ${viewMode === key ? 'ca-view-toggle__btn--active' : 'ca-view-toggle__btn--inactive'}`}
+                  onClick={() => setViewMode(key)}
+                >
+                  <Icon size={14} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Loading */}
+          {loading && (
+            <div className="ca-loading">
+              <div className="ca-spinner" />
+              Loading assessments…
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && filtered.length === 0 && (
+            <div className="ca-empty">
+              <ClipboardList size={32} color="#CBD5E1" className="ca-empty__icon" />
+              <p className="ca-empty__title">
+                {assessments.length === 0 ? 'No assessments yet' : 'No results match your filters'}
+              </p>
+              <p className="ca-empty__hint">
+                {assessments.length === 0
+                  ? 'Choose a mode above to create your first one'
+                  : 'Try adjusting your search or filter'}
+              </p>
+            </div>
+          )}
+
+          {/* TABLE VIEW */}
+          {!loading && filtered.length > 0 && viewMode === 'table' && (
+            <table className="ca-table">
+              <thead className="ca-table__head">
+                <tr>
+                  {['Assessment', 'Role', 'Mode', 'Duration', 'Questions', 'Status', ''].map((col, i) => (
+                    <th key={i} className="ca-table__th">{col}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a, idx) => (
+                  <tr
+                    key={a._id}
+                    className="ca-table__row"
+                    style={{ borderBottom: idx < filtered.length - 1 ? '1px solid #F8FAFC' : 'none' }}
+                    onClick={() => navigate(`/hr/assessments/${a._id}`)}
+                  >
+                    {/* Assessment name */}
+                    <td className="ca-table__td">
+                      <div className="ca-assessment-name">
+                        <div className="ca-assessment-name__icon">
+                          <ClipboardList size={15} color="#2563EB" />
+                        </div>
+                        <span className="ca-assessment-name__text">{a.title}</span>
+                      </div>
+                    </td>
+
+                    {/* Role */}
+                    <td className="ca-table__td">
+                      <div className="ca-role-title">
+                        {a.roleId?.title || <span className="ca-role-empty">—</span>}
+                      </div>
+                      {a.roleId?.department && (
+                        <div className="ca-role-dept">{a.roleId.department}</div>
+                      )}
+                    </td>
+
+                    {/* Mode */}
+                    <td className="ca-table__td">
+                      <ModeBadge mode={a.mode} />
+                    </td>
+
+                    {/* Duration */}
+                    <td className="ca-table__td">
+                      <div className="ca-meta-cell">
+                        <Clock size={12} /> {a.duration} min
+                      </div>
+                    </td>
+
+                    {/* Questions */}
+                    <td className="ca-table__td">
+                      <div className="ca-meta-cell">
+                        <Users size={12} /> {a.totalQuestions}
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td className="ca-table__td">
+                      <StatusPill active={a.active} />
+                    </td>
+
+                    {/* Arrow */}
+                    <td className="ca-table__td--right">
+                      <ChevronRight size={14} color="#CBD5E1" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* GRID VIEW */}
+          {!loading && filtered.length > 0 && viewMode === 'grid' && (
+            <div className="ca-grid">
+              {filtered.map(a => (
+                <div
+                  key={a._id}
+                  className="ca-grid-card"
+                  onClick={() => navigate(`/hr/assessments/${a._id}`)}
+                >
+                  <div className="ca-grid-card__header">
+                    <div className="ca-grid-card__icon">
+                      <ClipboardList size={16} color="#2563EB" />
                     </div>
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 5, fontSize: 12,
-                      fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-                      background: a.active ? '#dcfce7' : '#f1f5f9',
-                      color: a.active ? '#15803d' : '#94a3b8',
-                    }}>
-                      {a.active ? <><CheckCircle size={12} /> Active</> : <><XCircle size={12} /> Inactive</>}
+                    <StatusPill active={a.active} />
+                  </div>
+                  <div className="ca-grid-card__title">{a.title}</div>
+                  <div className="ca-grid-card__role">
+                    {a.roleId?.title || 'No role'}
+                    {a.roleId?.department ? ` · ${a.roleId.department}` : ''}
+                  </div>
+                  <div className="ca-grid-card__footer">
+                    <div className="ca-grid-card__meta">
+                      <Clock size={11} /> {a.duration} min
                     </div>
-                    <ChevronRight size={15} color="#cbd5e1" />
+                    <div className="ca-grid-card__meta">
+                      <Users size={11} /> {a.totalQuestions} q
+                    </div>
+                    <ModeBadge mode={a.mode} />
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
 
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

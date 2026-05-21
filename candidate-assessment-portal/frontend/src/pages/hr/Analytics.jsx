@@ -6,6 +6,7 @@ import Card from '../../components/ui/Card';
 import { BarChart3, RefreshCw, AlertCircle } from 'lucide-react';
 import '../../styles/Analytics.css';
 import '../../styles/SquircleHeader.css';
+import PageShell from '../../components/layout/PageShell';
 
 const COLORS = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2'];
 
@@ -58,7 +59,7 @@ export default function Analytics() {
     }
   };
 
-  if (loading) return <div className="analytics-loading">Loading analytics...</div>;
+  if (loading) return <PageShell><div className="analytics-loading">Loading analytics...</div></PageShell>;
 
   const perfData = performance ? Object.entries(performance).map(([k, v]) => ({ name: k.charAt(0).toUpperCase() + k.slice(1), value: v })) : [];
   const statusData = overview ? [
@@ -76,7 +77,8 @@ export default function Analytics() {
   if (overview?.completedAssessments > 0 && overview?.shortlisted / overview?.completedAssessments < 0.2) insights.push({ type: 'warning', text: 'Low shortlisting rate — review assessment pass threshold.' });
 
   return (
-    <div>
+    <PageShell scrollable>
+      <div>
       {/* Squircle Header */}
       <div className="squircle-header">
         <div className="squircle-header-icon">
@@ -262,6 +264,7 @@ export default function Analytics() {
           </div>
         </Card>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }
