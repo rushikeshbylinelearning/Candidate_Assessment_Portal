@@ -13,21 +13,39 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install & Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Upload Frontend Build via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PORT }}
+          source: "frontend/dist/*"
+          target: "/home/legatolx/assessment-portal.legatolxp.online/"
+          strip_components: 2
+
+      - name: Deploy Backend via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.PORT }}
-
           script: |
-            cd ~/public_html
-
-            if [ ! -d "Candidate_Assessment_Portal" ]; then
-              git clone https://github.com/rushikeshbylinelearning/Candidate_Assessment_Portal.git
-            fi
-
-            cd Candidate_Assessment_Portal
-
-            git pull origin main
+            cd /home/legatolx/assessment-portal.legatolxp.online
+            git pull --depth=1 origin main
+            cd backend
+            source /home/legatolx/nodevenv/assessment-portal.legatolxp.online/20/bin/activate
+            npm install --production
+            touch /home/legatolx/assessment-portal.legatolxp.online/tmp/restart.txt
