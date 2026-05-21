@@ -1,0 +1,33 @@
+name: Deploy to A2 Hosting
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PORT }}
+
+          script: |
+            cd ~/public_html
+
+            if [ ! -d "Candidate_Assessment_Portal" ]; then
+              git clone https://github.com/rushikeshbylinelearning/Candidate_Assessment_Portal.git
+            fi
+
+            cd Candidate_Assessment_Portal
+
+            git pull origin main
