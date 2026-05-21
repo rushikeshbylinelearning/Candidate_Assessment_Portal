@@ -20,7 +20,7 @@ jobs:
 
       - name: Install & Build Frontend
         run: |
-          cd frontend
+          cd Candidate_Assessment_Portal/frontend
           npm install
           npm run build
 
@@ -31,9 +31,9 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.PORT }}
-          source: "frontend/dist/*"
+          source: "Candidate_Assessment_Portal/frontend/dist/*"
           target: "/home/legatolx/assessment-portal.legatolxp.online/"
-          strip_components: 2
+          strip_components: 3
 
       - name: Deploy Backend via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -45,7 +45,7 @@ jobs:
           script: |
             cd /home/legatolx/assessment-portal.legatolxp.online
             git pull --depth=1 origin main
-            cd backend
+            cd Candidate_Assessment_Portal/backend
             source /home/legatolx/nodevenv/assessment-portal.legatolxp.online/20/bin/activate
             npm install --production
             touch /home/legatolx/assessment-portal.legatolxp.online/tmp/restart.txt
