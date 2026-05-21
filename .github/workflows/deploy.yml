@@ -13,6 +13,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Debug - Show repo structure
+        run: |
+          echo "=== ROOT ===" 
+          ls -la
+          echo "=== ALL package.json files ==="
+          find . -name "package.json" -not -path "*/node_modules/*"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
