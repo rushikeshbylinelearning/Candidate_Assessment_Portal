@@ -13,13 +13,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Debug - Show repo structure
-        run: |
-          echo "=== ROOT ===" 
-          ls -la
-          echo "=== ALL package.json files ==="
-          find . -name "package.json" -not -path "*/node_modules/*"
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -27,7 +20,7 @@ jobs:
 
       - name: Install & Build Frontend
         run: |
-          cd Candidate_Assessment_Portal/frontend
+          cd candidate-assessment-portal/frontend
           npm install
           npm run build
 
@@ -38,7 +31,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.PORT }}
-          source: "Candidate_Assessment_Portal/frontend/dist/*"
+          source: "candidate-assessment-portal/frontend/dist/*"
           target: "/home/legatolx/assessment-portal.legatolxp.online/"
           strip_components: 3
 
@@ -52,7 +45,7 @@ jobs:
           script: |
             cd /home/legatolx/assessment-portal.legatolxp.online
             git pull --depth=1 origin main
-            cd Candidate_Assessment_Portal/backend
+            cd candidate-assessment-portal/backend
             source /home/legatolx/nodevenv/assessment-portal.legatolxp.online/20/bin/activate
             npm install --production
             touch /home/legatolx/assessment-portal.legatolxp.online/tmp/restart.txt
