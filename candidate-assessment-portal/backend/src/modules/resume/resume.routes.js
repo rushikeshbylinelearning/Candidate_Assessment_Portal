@@ -3,32 +3,21 @@ const router = express.Router();
 const resumeController = require('./resume.controller');
 const { protect } = require('../../middleware/auth');
 const upload = require('../../config/multer');
+const { httpCache } = require('../../middleware/httpCache');
+const { invalidateOnSuccess } = require('../../middleware/cacheInvalidate');
 
-// All routes require authentication
 router.use(protect);
+router.use(httpCache('candidates'));
 
-// Get parsing status (lightweight poll)
 router.get('/:candidateId/status', resumeController.getParsingStatus);
 
-// Upload and parse resume
-router.post('/upload/:candidateId', upload.single('resume'), resumeController.uploadAndParse);
+router.post('/upload/:candidateId', upload.single('resume'), invalidateOnSuccess(['candidates']), resumeController.uploadAndParse);
+router.post('/parse/:candidateId', invalidateOnSuccess(['candidates']), resumeController.triggerParsing);
+router.put('/:candidateId', invalidateOnSuccess(['candidates']), resumeController.updateResumeData);
+router.delete('/:candidateId', invalidateOnSuccess(['candidates']), resumeController.deleteResumeData);
+router.post('/:candidateId/recompute-match', invalidateOnSuccess(['candidates']), resumeController.recomputeMatch);
 
-// Trigger manual parsing
-router.post('/parse/:candidateId', resumeController.triggerParsing);
-
-// Get parsed resume data
 router.get('/:candidateId', resumeController.getResumeData);
-
-// Update resume data manually
-router.put('/:candidateId', resumeController.updateResumeData);
-
-// Delete resume data
-router.delete('/:candidateId', resumeController.deleteResumeData);
-
-// Match resume with role
 router.get('/:candidateId/match/:roleId', resumeController.matchWithRole);
-
-// Recompute skill match
-router.post('/:candidateId/recompute-match', resumeController.recomputeMatch);
 
 module.exports = router;

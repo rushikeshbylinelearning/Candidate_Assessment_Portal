@@ -8,17 +8,15 @@
  */
 
 const fs = require('fs').promises;
-const { PDFParse } = require('pdf-parse');
 const mammoth = require('mammoth');
+const { extractTextFromPdfBuffer } = require('../../utils/pdfText');
 
 // ─── Text Extraction ──────────────────────────────────────────────────────────
 
 async function extractText(filePath, mimetype) {
   const buf = await fs.readFile(filePath);
   if (mimetype === 'application/pdf') {
-    const parser = new PDFParse({ data: buf });
-    const result = await parser.getText();
-    return result.text;
+    return extractTextFromPdfBuffer(buf);
   }
   // Word documents
   const result = await mammoth.extractRawText({ buffer: buf });

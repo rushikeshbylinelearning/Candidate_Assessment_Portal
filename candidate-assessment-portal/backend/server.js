@@ -13,6 +13,7 @@ const requestTiming = require('./src/middleware/requestTiming');
 const monitor = require('./src/utils/monitor');
 const appLogger = require('./src/utils/appLogger');
 const { getQueueStats } = require('./src/utils/taskQueue');
+const cacheService = require('./src/services/cache.service');
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -105,6 +106,7 @@ app.get('/api/health', (req, res) => {
   res.status(dbState === 1 ? 200 : 503).json({
     ...monitor.getHealth(dbState),
     backgroundTasks: getQueueStats(),
+    cache: cacheService.getStats(),
   });
 });
 
@@ -145,6 +147,7 @@ const SHUTDOWN_TIMEOUT_MS = parseInt(process.env.SHUTDOWN_TIMEOUT_MS || '10000',
 function gracefulShutdown(signal) {
   appLogger.info(`${signal} received — shutting down gracefully`);
   server.close(() => {
+    cacheService.clearAll();
     mongoose.connection.close(false).then(() => {
       appLogger.info('HTTP server and MongoDB connection closed');
       process.exit(0);

@@ -59,6 +59,23 @@ pm2 save
 5. Set `TRUST_PROXY=true` behind reverse proxy.
 6. Serve uploads from `backend/uploads` (persistent volume).
 
+## Response cache
+
+Server-side in-memory cache reduces MongoDB reads on page reload:
+
+- Scoped **per user** (JWT user id) — no cross-account data leaks
+- Bounded to **300 entries** with LRU eviction
+- Auto-invalidates on POST/PUT/DELETE for related data
+- Skips live endpoints: `/status`, `/tokens`, auth, webhooks
+
+Client-side `sessionStorage` cache mirrors GET responses for the same TTL window (tab-scoped).
+
+Tune via `CACHE_TTL_*` and `CACHE_MAX_ENTRIES` in `backend/.env`.
+
+Check hit rate: `GET /api/health` → `cache.hitRate`.
+
+Force fresh data: add `?nocache=1` to any GET, or use `api.get(url, forceRefresh())` in code.
+
 ## Health check
 
 ```http

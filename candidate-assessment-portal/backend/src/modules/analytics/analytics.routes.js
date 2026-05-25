@@ -1,10 +1,10 @@
 const router = require('express').Router();
 const ctrl = require('./analytics.controller');
 const { protect } = require('../../middleware/auth');
-const { analyticsCache } = require('../../middleware/analyticsCache');
+const { httpCache } = require('../../middleware/httpCache');
 
 router.use(protect);
-router.use(analyticsCache);
+router.use(httpCache('analytics'));
 router.get('/overview', ctrl.getOverview);
 router.get('/funnel', ctrl.getFunnel);
 router.get('/performance', ctrl.getPerformance);

@@ -1,32 +1,54 @@
 import { useEffect, useState, useRef } from 'react';
-import api from '../utils/api';
+import api, { forceRefresh } from '../utils/api';
+import { cacheGet, cacheSet } from '../services/cacheService';
 
-const CACHE_TTL_MS = 55_000;
-let sharedCache = null;
-let inflight = null;
+const ENDPOINTS = [
+  '/analytics/overview',
+  '/analytics/funnel',
+  '/analytics/performance',
+];
 
-async function fetchAnalyticsBundle() {
-  if (sharedCache && Date.now() - sharedCache.ts < CACHE_TTL_MS) {
-    return sharedCache.data;
+async function fetchAnalyticsBundle({ refresh = false } = {}) {
+  if (!refresh) {
+    const cached = ENDPOINTS.map((url) => cacheGet(url));
+    if (cached.every(Boolean)) {
+      return {
+        overview: cached[0],
+        funnel: cached[1],
+        performance: cached[2],
+      };
+    }
   }
-  if (inflight) return inflight;
 
-  inflight = Promise.all([
-    api.get('/analytics/overview'),
-    api.get('/analytics/funnel'),
-    api.get('/analytics/performance'),
-  ]).then(([ov, fn, pf]) => {
-    const data = { overview: ov.data, funnel: fn.data, performance: pf.data };
-    sharedCache = { data, ts: Date.now() };
-    return data;
-  }).finally(() => {
-    inflight = null;
+  const cfg = refresh ? forceRefresh() : undefined;
+  const [ov, fn, pf] = await Promise.all(
+    ENDPOINTS.map((url) => api.get(url, cfg))
+  );
+
+  const data = {
+    overview: ov.data,
+    funnel: fn.data,
+    performance: pf.data,
+  };
+
+  ENDPOINTS.forEach((url, i) => {
+    cacheSet(url, [data.overview, data.funnel, data.performance][i]);
   });
 
+  return data;
+}
+
+let inflight = null;
+
+function loadBundle(refresh = false) {
+  if (inflight && !refresh) return inflight;
+  inflight = fetchAnalyticsBundle({ refresh }).finally(() => {
+    inflight = null;
+  });
   return inflight;
 }
 
-/** Shared analytics data for Dashboard + Analytics pages (dedupes API calls). */
+/** Shared analytics data for Dashboard + Analytics (client + server cache). */
 export function useAnalytics({ enabled = true } = {}) {
   const [overview, setOverview] = useState(null);
   const [funnel, setFunnel] = useState([]);
@@ -40,7 +62,7 @@ export function useAnalytics({ enabled = true } = {}) {
     if (!enabled) return undefined;
 
     setLoading(true);
-    fetchAnalyticsBundle()
+    loadBundle(false)
       .then((data) => {
         if (!mounted.current) return;
         setOverview(data.overview);
@@ -61,10 +83,9 @@ export function useAnalytics({ enabled = true } = {}) {
   }, [enabled]);
 
   const refresh = async () => {
-    sharedCache = null;
     setLoading(true);
     try {
-      const data = await fetchAnalyticsBundle();
+      const data = await loadBundle(true);
       setOverview(data.overview);
       setFunnel(data.funnel);
       setPerformance(data.performance);
@@ -77,8 +98,4 @@ export function useAnalytics({ enabled = true } = {}) {
   };
 
   return { overview, funnel, performance, loading, error, refresh };
-}
-
-export function invalidateAnalyticsClientCache() {
-  sharedCache = null;
 }

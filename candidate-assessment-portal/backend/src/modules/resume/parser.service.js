@@ -11,11 +11,9 @@ const { parseWithGemini } = require('./gemini.service');
  */
 async function extractPdfText(filePath) {
   try {
-    const { PDFParse } = require('pdf-parse');
+    const { extractTextFromPdfBuffer } = require('../../utils/pdfText');
     const dataBuffer = await fs.readFile(filePath);
-    const parser = new PDFParse({ data: dataBuffer, verbosity: 0 });
-    const result = await parser.getText({ pageJoiner: '\n' });
-    return (result.text || '').trim();
+    return extractTextFromPdfBuffer(dataBuffer);
   } catch (err) {
     console.warn('[extractPdfText] Extraction failed:', err.message);
     return '';
