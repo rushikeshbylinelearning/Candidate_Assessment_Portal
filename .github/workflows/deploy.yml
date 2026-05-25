@@ -60,4 +60,4 @@ jobs:
         
               # ✅ Restart PM2 using full path
               ~/node-v20.11.1-linux-x64/bin/pm2 restart assessment-portal --update-env
-              ~/node-v20.11.1-linux-x64/bin/pm2 save
+              ~/node-v20.11.1-linux-x64/bin/pm2 save   
