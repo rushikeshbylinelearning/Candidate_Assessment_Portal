@@ -33,20 +33,31 @@ jobs:
           port: ${{ secrets.PORT }}
           source: "frontend/dist/*"        # ✅ updated path
           target: "/home/legatolx/assessment-portal.legatolxp.online/"
-          strip_components: 2              # ✅ was 3, now 2
+          strip_components: 2  
 
       - name: Deploy Backend via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.PORT }}
-          script: |
-            cd /home/legatolx/assessment-portal.legatolxp.online
-            git pull --depth=1 origin main
-            cd backend                     # ✅ root level now
-            source /home/legatolx/nodevenv/assessment-portal.legatolxp.online/20/bin/activate
-            npm install --production
-            pm2 restart assessment-portal --update-env   # ✅ PM2 restart
-            pm2 save
+            host: ${{ secrets.HOST }}
+            username: ${{ secrets.USERNAME }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            port: ${{ secrets.PORT }}
+            script: |
+              set -e
+        
+              # ✅ Full paths for node/pm2 from custom install
+              export PATH=$HOME/node-v20.11.1-linux-x64/bin:$PATH
+        
+              cd /home/legatolx/assessment-portal.legatolxp.online
+        
+              # ✅ Force sync with remote (fixes divergent branches)
+              git fetch origin main
+              git reset --hard origin/main
+        
+              cd backend
+              source /home/legatolx/nodevenv/assessment-portal.legatolxp.online/20/bin/activate
+              npm install --omit=dev
+        
+              # ✅ Restart PM2 using full path
+              ~/node-v20.11.1-linux-x64/bin/pm2 restart assessment-portal --update-env
+              ~/node-v20.11.1-linux-x64/bin/pm2 save
