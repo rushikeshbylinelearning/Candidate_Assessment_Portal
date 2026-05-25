@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, FunnelChart, Funnel, LabelList } from 'recharts';
-import api from '../../utils/api';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useAnalytics } from '../../hooks/useAnalytics';
 import { fetchAllWorkflowData } from '../../services/workflowApi';
 import Card from '../../components/ui/Card';
 import { BarChart3, RefreshCw, AlertCircle } from 'lucide-react';
@@ -11,38 +11,18 @@ import PageShell from '../../components/layout/PageShell';
 const COLORS = ['#e11d48', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2'];
 
 export default function Analytics() {
-  const [overview, setOverview] = useState(null);
-  const [funnel, setFunnel] = useState([]);
-  const [performance, setPerformance] = useState(null);
+  const { overview, funnel, performance, loading, refresh } = useAnalytics();
   const [workflowData, setWorkflowData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const [workflowError, setWorkflowError] = useState(null);
 
   useEffect(() => {
-    loadAnalytics();
+    loadWorkflowData();
   }, []);
 
   const loadAnalytics = async () => {
-    setLoading(true);
-    try {
-      // Load local analytics
-      const [ov, fn, pf] = await Promise.all([
-        api.get('/analytics/overview'),
-        api.get('/analytics/funnel'),
-        api.get('/analytics/performance'),
-      ]);
-      setOverview(ov.data);
-      setFunnel(fn.data);
-      setPerformance(pf.data);
-
-      // Load workflow analytics
-      await loadWorkflowData();
-    } catch (error) {
-      console.error('Failed to load analytics:', error);
-    } finally {
-      setLoading(false);
-    }
+    await refresh();
+    await loadWorkflowData();
   };
 
   const loadWorkflowData = async () => {

@@ -17,7 +17,7 @@ import CandidateRow from '../../components/candidates/CandidateRow';
 import SkeletonRow, { SkeletonStyle } from '../../components/candidates/SkeletonRow';
 import PageShell from '../../components/layout/PageShell';
 
-// ── Prevent background scroll while any modal is open ───────────────────────
+// ?? Prevent background scroll while any modal is open ???????????????????????
 function useBodyScrollLock() {
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -26,10 +26,10 @@ function useBodyScrollLock() {
   }, []);
 }
 
-// ── Invite Link Modal ────────────────────────────────────────────────────────
+// ?? Invite Link Modal ????????????????????????????????????????????????????????
 // Removed: token/link generation is no longer part of the assign flow
 
-// ── Assign Assessment Modal ──────────────────────────────────────────────────
+// ?? Assign Assessment Modal ??????????????????????????????????????????????????
 function AssignModal({ candidate, onClose, onAssigned }) {
   useBodyScrollLock();
   const [allAssessments, setAllAssessments] = useState([]);
@@ -184,7 +184,7 @@ function AssignModal({ candidate, onClose, onAssigned }) {
             </div>
             <div>
               <h2>{isEditing ? 'Update Assessments' : 'Assign Assessments'}</h2>
-              <p>To: <strong>{candidate.name}</strong> · {candidate.appliedRole?.title || 'No role'}</p>
+              <p>To: <strong>{candidate.name}</strong> � {candidate.appliedRole?.title || 'No role'}</p>
             </div>
           </div>
           <button onClick={onClose} className="modal-close-btn">
@@ -232,7 +232,7 @@ function AssignModal({ candidate, onClose, onAssigned }) {
                 <label 
                   key={a._id} 
                   className={`assign-item ${isSelected ? 'selected' : ''} ${isCompleted ? 'locked' : ''} ${isAssigned && !isCompleted ? 'assigned' : ''}`}
-                  title={isCompleted ? 'Completed — cannot remove' : ''}
+                  title={isCompleted ? 'Completed � cannot remove' : ''}
                 >
                   <input
                     type="checkbox"
@@ -245,7 +245,7 @@ function AssignModal({ candidate, onClose, onAssigned }) {
                     <div className="assign-item-header">
                       <span className="assign-item-title">{a.title}</span>
                       {isAssigned && (
-                        <span className="status-badge assigned-badge">✓ Assigned</span>
+                        <span className="status-badge assigned-badge">? Assigned</span>
                       )}
                       {isRoleMatch && <span className="role-match-badge">Role match</span>}
                       {isCompleted && <span className="status-badge completed">Completed</span>}
@@ -253,11 +253,11 @@ function AssignModal({ candidate, onClose, onAssigned }) {
                     </div>
                     <div className="assign-item-meta">
                       <span>{a.roleId?.title || 'No role'}</span>
-                      <span>·</span>
+                      <span>�</span>
                       <span>{a.totalQuestions} questions</span>
-                      <span>·</span>
+                      <span>�</span>
                       <span>{a.duration} min</span>
-                      <span>·</span>
+                      <span>�</span>
                       <span>Pass: {a.passThreshold}%</span>
                     </div>
                   </div>
@@ -314,7 +314,7 @@ function AssignModal({ candidate, onClose, onAssigned }) {
   );
 }
 
-// ── Add Candidate Modal (with Resume Upload) ────────────────────────────────
+// ?? Add Candidate Modal (with Resume Upload) ????????????????????????????????
 function AddCandidateModal({ roles, onClose, onSuccess }) {
   useBodyScrollLock();
   const [form, setForm] = useState({ 
@@ -425,9 +425,9 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
                 value={form.appliedRole}
                 onChange={e => setForm(p => ({ ...p, appliedRole: e.target.value }))}
               >
-                <option value="">Select a role…</option>
+                <option value="">Select a role�</option>
                 {roles.map(r => (
-                  <option key={r._id} value={r._id}>{r.title} — {r.department}</option>
+                  <option key={r._id} value={r._id}>{r.title} � {r.department}</option>
                 ))}
               </select>
             </div>
@@ -489,7 +489,7 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
                 <div className="resume-dropzone-content">
                   <Upload size={22} />
                   <p className="resume-dropzone-title">Click to upload resume</p>
-                  <p className="resume-dropzone-subtitle">PDF, DOC or DOCX · Max 5 MB</p>
+                  <p className="resume-dropzone-subtitle">PDF, DOC or DOCX � Max 5 MB</p>
                 </div>
               )}
             </div>
@@ -498,7 +498,7 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
           <div className="form-actions">
             <button type="submit" disabled={uploading} className="btn-primary btn-submit">
               {uploading ? (
-                <><Loader size={15} className="spinner" /> Uploading…</>
+                <><Loader size={15} className="spinner" /> Uploading�</>
               ) : (
                 <><Plus size={15} /> Add Candidate</>
               )}
@@ -513,7 +513,7 @@ function AddCandidateModal({ roles, onClose, onSuccess }) {
   );
 }
 
-// ── Edit Candidate Modal ─────────────────────────────────────────────────────
+// ?? Edit Candidate Modal ?????????????????????????????????????????????????????
 function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
   useBodyScrollLock();
   const [form, setForm] = useState({ 
@@ -624,9 +624,9 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
                 value={form.appliedRole}
                 onChange={e => setForm(p => ({ ...p, appliedRole: e.target.value }))}
               >
-                <option value="">Select a role…</option>
+                <option value="">Select a role�</option>
                 {roles.map(r => (
-                  <option key={r._id} value={r._id}>{r.title} — {r.department}</option>
+                  <option key={r._id} value={r._id}>{r.title} � {r.department}</option>
                 ))}
               </select>
             </div>
@@ -697,7 +697,7 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
                 <div className="resume-dropzone-content">
                   <Upload size={22} />
                   <p className="resume-dropzone-title">Click to upload resume</p>
-                  <p className="resume-dropzone-subtitle">PDF, DOC or DOCX · Max 5 MB</p>
+                  <p className="resume-dropzone-subtitle">PDF, DOC or DOCX � Max 5 MB</p>
                 </div>
               )}
             </div>
@@ -706,7 +706,7 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
           <div className="form-actions">
             <button type="submit" disabled={updating} className="btn-primary btn-submit">
               {updating ? (
-                <><Loader size={15} className="spinner" /> Saving…</>
+                <><Loader size={15} className="spinner" /> Saving�</>
               ) : (
                 <><Edit2 size={15} /> Save Changes</>
               )}
@@ -721,7 +721,7 @@ function EditCandidateModal({ candidate, roles, onClose, onSuccess }) {
   );
 }
 
-// ── Delete Confirmation Modal ────────────────────────────────────────────────
+// ?? Delete Confirmation Modal ????????????????????????????????????????????????
 function DeleteConfirmModal({ candidate, onClose, onConfirm }) {
   useBodyScrollLock();
   const [deleting, setDeleting] = useState(false);
@@ -781,7 +781,7 @@ function DeleteConfirmModal({ candidate, onClose, onConfirm }) {
   );
 }
 
-// ── Bulk Upload Modal ────────────────────────────────────────────────────────
+// ?? Bulk Upload Modal ????????????????????????????????????????????????????????
 function BulkUploadModal({ onClose, onSuccess }) {
   useBodyScrollLock();
   const [file, setFile] = useState(null);
@@ -966,7 +966,7 @@ function BulkUploadModal({ onClose, onSuccess }) {
   );
 }
 
-// ── View Completed Assessments Modal ─────────────────────────────────────────
+// ?? View Completed Assessments Modal ?????????????????????????????????????????
 function ViewAssessmentsModal({ candidate, onClose }) {
   useBodyScrollLock();
   const [pipelines, setPipelines] = useState([]);
@@ -1024,7 +1024,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
   };
 
   const formatDate = (date) => {
-    if (!date) return '—';
+    if (!date) return '�';
     return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -1035,7 +1035,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
   };
 
   const formatDuration = (start, end) => {
-    if (!start || !end) return '—';
+    if (!start || !end) return '�';
     const diff = new Date(end) - new Date(start);
     const minutes = Math.floor(diff / 60000);
     return `${minutes} min`;
@@ -1095,7 +1095,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
             </div>
             <div>
               <h2>Assessment Results</h2>
-              <p className="modal-subtitle">{candidate.name} · {candidate.appliedRole?.title || 'No role'}</p>
+              <p className="modal-subtitle">{candidate.name} � {candidate.appliedRole?.title || 'No role'}</p>
             </div>
           </div>
           <button onClick={onClose} className="modal-close-btn">
@@ -1108,7 +1108,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
           {loading ? (
             <div className="va-empty-state">
               <Loader size={28} className="spinner" style={{ color: '#94a3b8' }} />
-              <p>Loading assessments…</p>
+              <p>Loading assessments�</p>
             </div>
           ) : pipelines.length === 0 ? (
             <div className="va-empty-state">
@@ -1118,7 +1118,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
             </div>
           ) : (
             <div className="va-layout">
-              {/* Left — pipeline list */}
+              {/* Left � pipeline list */}
               <div className="va-sidebar">
                 <div className="va-section-label">Pipelines</div>
                 {pipelines.map((pipeline) => (
@@ -1137,7 +1137,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
                       {formatDate(pipeline.createdAt)}
                       {pipeline.aggregateScore != null && (
                         <span className={`va-score ${pipeline.aggregateScore >= 70 ? 'good' : pipeline.aggregateScore >= 50 ? 'mid' : 'low'}`}>
-                          · {Math.round(pipeline.aggregateScore)}%
+                          � {Math.round(pipeline.aggregateScore)}%
                         </span>
                       )}
                     </div>
@@ -1163,12 +1163,12 @@ function ViewAssessmentsModal({ candidate, onClose }) {
                 ))}
               </div>
 
-              {/* Right — detail panel */}
+              {/* Right � detail panel */}
               <div className="va-detail">
                 {loadingData ? (
                   <div className="va-empty-state">
                     <Loader size={22} className="spinner" style={{ color: '#94a3b8' }} />
-                    <p>Loading details…</p>
+                    <p>Loading details�</p>
                   </div>
                 ) : assessmentData ? (
                   <div className="va-detail-content">
@@ -1208,7 +1208,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
                     {assessmentData.data?.responses?.length > 0 && (
                       <div className="va-responses">
                         <div className="va-section-label">
-                          Responses · {assessmentData.data.responses.length} questions
+                          Responses � {assessmentData.data.responses.length} questions
                         </div>
                         {assessmentData.data.responses.map((response, idx) => {
                           const question = questions[response.questionId];
@@ -1227,7 +1227,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
                                 )}
                                 {isCorrect !== null && (
                                   <span className={`va-verdict ${isCorrect ? 'correct' : 'incorrect'}`}>
-                                    {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                                    {isCorrect ? '? Correct' : '? Incorrect'}
                                   </span>
                                 )}
                               </div>
@@ -1286,7 +1286,7 @@ function ViewAssessmentsModal({ candidate, onClose }) {
   );
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
+// ?? Main Component ???????????????????????????????????????????????????????????
 export default function Candidates() {
   const [candidates, setCandidates] = useState([]);
   const [allCandidates, setAllCandidates] = useState([]);
@@ -1303,7 +1303,7 @@ export default function Candidates() {
   const navigate = useNavigate();
 
   const fetchCandidates = async (applyFilters = true) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ limit: '500' });
     if (applyFilters) {
       if (search) params.set('search', search);
       if (filters.role) params.set('role', filters.role);
@@ -1327,6 +1327,8 @@ export default function Candidates() {
     }
   };
 
+  const skipFilterEffectRef = useRef(true);
+
   useEffect(() => {
     Promise.all([loadAll(), api.get('/roles?active=true')])
       .then(([, r]) => setRoles(r.data))
@@ -1334,6 +1336,10 @@ export default function Candidates() {
   }, []);
 
   useEffect(() => {
+    if (skipFilterEffectRef.current) {
+      skipFilterEffectRef.current = false;
+      return;
+    }
     if (!loading) loadAll();
   }, [search, filters]);
 
@@ -1349,7 +1355,7 @@ export default function Candidates() {
 
   const hasFilters = search || filters.role || filters.status || filters.experience;
 
-  // ── CTA buttons (passed to PageShell header) ──────────────────────────────
+  // ?? CTA buttons (passed to PageShell header) ??????????????????????????????
   const headerActions = (
     <>
       <button
@@ -1389,7 +1395,7 @@ export default function Candidates() {
     <PageShell>
       <SkeletonStyle />
 
-      {/* -- Dark header card � matches Dashboard style -- */}
+      {/* -- Dark header card � matches Dashboard style -- */}
       <div style={{
         background: 'linear-gradient(135deg, #0C1220 0%, #1E2A45 60%, #162035 100%)',
         borderRadius: 12,
@@ -1455,10 +1461,10 @@ export default function Candidates() {
         </div>
       </div>
 
-      {/* ── Summary strip (static) ── */}
+      {/* ?? Summary strip (static) ?? */}
       <SummaryStrip candidates={allCandidates} />
 
-      {/* ── Filter bar (static) ── */}
+      {/* ?? Filter bar (static) ?? */}
       <FilterBar
         search={search}
         onSearch={setSearch}
@@ -1468,10 +1474,10 @@ export default function Candidates() {
         onClear={handleClearFilters}
       />
 
-      {/* ── Table card — this is the ONLY scrollable section ── */}
+      {/* ?? Table card � this is the ONLY scrollable section ?? */}
       <div style={{
         flex: 1,           // takes all remaining vertical space
-        minHeight: 0,      // ❗ CRITICAL: allows flex child to shrink below content size
+        minHeight: 0,      // ? CRITICAL: allows flex child to shrink below content size
         display: 'flex',
         flexDirection: 'column',
         background: '#fff',
@@ -1480,7 +1486,7 @@ export default function Candidates() {
         overflow: 'hidden',
         boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
       }}>
-        {/* Table toolbar — always visible */}
+        {/* Table toolbar � always visible */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '12px 16px',
@@ -1489,7 +1495,7 @@ export default function Candidates() {
           background: '#fff',
         }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
-            {loading ? 'Loading…' : `${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`}
+            {loading ? 'Loading�' : `${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`}
             {hasFilters && !loading && (
               <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 400, marginLeft: 6 }}>
                 (filtered)
@@ -1499,7 +1505,7 @@ export default function Candidates() {
         </div>
 
         {loading ? (
-          /* ── Skeleton state ── */
+          /* ?? Skeleton state ?? */
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -1523,7 +1529,7 @@ export default function Candidates() {
             </table>
           </div>
         ) : candidates.length === 0 ? (
-          /* ── Empty state ── */
+          /* ?? Empty state ?? */
           <div style={{
             flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
@@ -1587,11 +1593,11 @@ export default function Candidates() {
             </div>
           </div>
         ) : (
-          /* ── Scrollable table ── */
+          /* ?? Scrollable table ?? */
           <div style={{
             flex: 1,
-            overflowY: 'auto',   // ❗ ONLY this div scrolls
-            minHeight: 0,        // ❗ CRITICAL
+            overflowY: 'auto',   // ? ONLY this div scrolls
+            minHeight: 0,        // ? CRITICAL
             overflowX: 'auto',
           }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1630,7 +1636,7 @@ export default function Candidates() {
         )}
       </div>
 
-      {/* ── Modals ── */}
+      {/* ?? Modals ?? */}
       {showAdd && (
         <AddCandidateModal roles={roles} onClose={() => setShowAdd(false)} onSuccess={loadAll} />
       )}

@@ -1,5 +1,9 @@
+const appLogger = require('../utils/appLogger');
+const monitor = require('../utils/monitor');
+
 const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
+  monitor.incrementErrors();
+  appLogger.error(err.message || 'Internal Server Error', process.env.NODE_ENV === 'development' ? err.stack : undefined);
   const status = err.statusCode || 500;
   res.status(status).json({
     message: err.message || 'Internal Server Error',

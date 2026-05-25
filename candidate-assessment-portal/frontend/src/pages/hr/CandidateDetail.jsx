@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { createBackoffPoller } from '../../utils/polling';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import Button from '../../components/ui/Button';
@@ -30,7 +31,7 @@ export default function CandidateDetail() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [noteText, setNoteText] = useState('');
-  const parsingPollRef = React.useRef(null);
+  const parsingPollerRef = useRef(null);
 
   // Strength & Weakness Management
   const [strengths, setStrengths] = useState([]);
@@ -146,55 +147,48 @@ export default function CandidateDetail() {
   useEffect(() => {
     fetchAll().finally(() => setLoading(false));
     return () => {
-      // Cleanup polling on unmount
-      if (parsingPollRef.current) {
-        clearInterval(parsingPollRef.current);
-      }
+      parsingPollerRef.current?.stop();
     };
   }, [id]);
 
-  /**
-   * Poll the parsing status every 3 seconds until completed or failed.
-   * Shows a persistent toast while parsing, then refreshes resume data.
-   */
   const startParsingPoll = (candidateId) => {
-    if (parsingPollRef.current) return; // Already polling
+    if (parsingPollerRef.current) return;
 
-    const toastId = toast.loading('Parsing resume… Gemini AI is extracting structured data.', {
-      duration: Infinity,
-    });
+    const toastId = toast.loading('Parsing resume…', { duration: Infinity });
 
-    parsingPollRef.current = setInterval(async () => {
-      try {
-        const statusRes = await api.get(`/resume/${candidateId}/status`);
-        const { parsingStatus, parsingError } = statusRes.data;
-
-        if (parsingStatus === 'completed') {
-          clearInterval(parsingPollRef.current);
-          parsingPollRef.current = null;
-          toast.dismiss(toastId);
-          toast.success('Resume parsed successfully! Data auto-filled from resume.');
-          // Refresh full resume data
-          const resumeRes = await api.get(`/resume/${candidateId}`);
+    parsingPollerRef.current = createBackoffPoller({
+      initialMs: 3000,
+      maxMs: 12000,
+      maxAttempts: 35,
+      poll: async () => {
+        const { data } = await api.get(`/resume/${candidateId}/status`);
+        return data;
+      },
+      isDone: (data) => data.parsingStatus === 'completed' || data.parsingStatus === 'failed',
+      onDone: async (data) => {
+        toast.dismiss(toastId);
+        if (data.parsingStatus === 'completed') {
+          toast.success('Resume parsed successfully.');
+          const [resumeRes, candidateRes] = await Promise.all([
+            api.get(`/resume/${candidateId}`),
+            api.get(`/candidates/${candidateId}`),
+          ]);
           setResumeData(resumeRes.data);
-          // Refresh candidate for updated skillMatchResult
-          const candidateRes = await api.get(`/candidates/${candidateId}`);
           if (candidateRes.data.skillMatchResult) {
             setRoleMatch(candidateRes.data.skillMatchResult);
           }
-        } else if (parsingStatus === 'failed') {
-          clearInterval(parsingPollRef.current);
-          parsingPollRef.current = null;
-          toast.dismiss(toastId);
-          toast.error(parsingError || 'Resume parsing failed. Please try again or enter details manually.');
-          // Refresh to show failed state
+        } else {
+          toast.error(data.parsingError || 'Resume parsing failed.');
           const resumeRes = await api.get(`/resume/${candidateId}`);
           setResumeData(resumeRes.data);
         }
-      } catch (err) {
-        console.warn('[parsingPoll] Status check failed:', err.message);
-      }
-    }, 3000);
+        parsingPollerRef.current = null;
+      },
+      onError: () => {
+        toast.dismiss(toastId);
+        parsingPollerRef.current = null;
+      },
+    });
   };
 
   const handleLogSubmit = async (e) => {

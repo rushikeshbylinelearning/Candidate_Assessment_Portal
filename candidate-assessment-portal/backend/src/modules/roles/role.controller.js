@@ -1,6 +1,10 @@
 const Role = require('./role.model');
 const Candidate = require('../candidate/candidate.model');
 const { log } = require('../../utils/logger');
+const { runSkillMatch } = require('../../services/resumeParse.service');
+const { enqueue } = require('../../utils/taskQueue');
+const appLogger = require('../../utils/appLogger');
+const { invalidateAnalyticsCache } = require('../../middleware/analyticsCache');
 
 exports.getRoles = async (req, res) => {
   const filter = {};
@@ -27,9 +31,10 @@ exports.updateRole = async (req, res) => {
 
     // If requiredSkills changed, recompute skill matches for all candidates with this role
     if (req.body.requiredSkills !== undefined) {
-      recomputeAllCandidateMatches(role._id, role).catch(err =>
-        console.error('[updateRole] Recompute error:', err.message)
+      recomputeAllCandidateMatches(role._id, role).catch((err) =>
+        appLogger.error('[updateRole] Recompute error', err.message)
       );
+      invalidateAnalyticsCache();
     }
 
     res.json(role);
@@ -55,14 +60,9 @@ exports.getRole = async (req, res) => {
  * Called asynchronously after role skills are updated
  */
 async function recomputeAllCandidateMatches(roleId, role) {
-  try {
-    const { runSkillMatch } = require('../resume/resume.controller');
-    const candidates = await Candidate.find({ appliedRole: roleId }).select('_id');
-    console.log(`[recomputeAllCandidateMatches] Recomputing for ${candidates.length} candidates in role ${roleId}`);
-    for (const candidate of candidates) {
-      await runSkillMatch(candidate._id, role);
-    }
-  } catch (err) {
-    console.error('[recomputeAllCandidateMatches] Error:', err.message);
-  }
+  const candidates = await Candidate.find({ appliedRole: roleId }).select('_id').lean();
+  appLogger.info(`Recomputing skill matches for ${candidates.length} candidates`);
+  await Promise.all(
+    candidates.map((c) => enqueue(() => runSkillMatch(c._id, role)))
+  );
 }

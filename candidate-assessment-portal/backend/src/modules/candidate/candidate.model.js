@@ -52,4 +52,10 @@ const candidateSchema = new mongoose.Schema({
   skillMatchResult: { type: skillMatchResultSchema, default: null },
 }, { timestamps: true });
 
+candidateSchema.index({ appliedRole: 1, assessmentStatus: 1 });
+candidateSchema.index({ assessmentStatus: 1 });
+candidateSchema.index({ finalDecision: 1 });
+candidateSchema.index({ email: 1 });
+candidateSchema.index({ name: 'text', email: 'text' });
+
 module.exports = mongoose.model('Candidate', candidateSchema);

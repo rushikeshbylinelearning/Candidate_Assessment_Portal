@@ -1,9 +1,9 @@
 const ResumeData = require('./resume.model');
 const Candidate = require('../candidate/candidate.model');
 const Role = require('../roles/role.model');
-const { parseResume } = require('./parser.service');
-const { calculateSkillMatch } = require('../../utils/skillMatcher');
 const path = require('path');
+const appLogger = require('../../utils/appLogger');
+const { scheduleResumeParse, runSkillMatch } = require('../../services/resumeParse.service');
 
 /**
  * Get parsing status (lightweight poll endpoint)
@@ -74,8 +74,7 @@ exports.uploadAndParse = async (req, res) => {
     candidate.resumeUrl = fileUrl;
     await candidate.save();
 
-    // Parse resume asynchronously (in background)
-    parseResumeAsync(resumeData._id, filePath, fileType, candidate);
+    scheduleResumeParse(resumeData._id, filePath, fileType, candidate);
 
     res.status(200).json({
       message: 'Resume uploaded successfully. Parsing in progress.',
@@ -86,72 +85,10 @@ exports.uploadAndParse = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    appLogger.error('Upload error', error.message);
     res.status(500).json({ message: 'Failed to upload resume', error: error.message });
   }
 };
-
-/**
- * Parse resume asynchronously and run skill matching
- */
-async function parseResumeAsync(resumeDataId, filePath, fileType, candidate) {
-  try {
-    const parsedData = await parseResume(filePath, fileType);
-
-    await ResumeData.findByIdAndUpdate(resumeDataId, {
-      ...parsedData,
-      parsingStatus: 'completed',
-    });
-
-    console.log(`[parseResumeAsync] Resume parsed: ${resumeDataId}`);
-
-    // Run skill matching after parse
-    if (candidate && candidate.appliedRole) {
-      await runSkillMatch(candidate._id, candidate.appliedRole);
-    }
-  } catch (error) {
-    console.error('[parseResumeAsync] Parsing error:', error);
-    await ResumeData.findByIdAndUpdate(resumeDataId, {
-      parsingStatus: 'failed',
-      parsingError: error.message,
-    });
-  }
-}
-
-/**
- * Run skill matching for a candidate against their applied role
- */
-async function runSkillMatch(candidateId, role) {
-  try {
-    const resumeData = await ResumeData.findOne({ candidateId });
-    if (!resumeData || resumeData.parsingStatus !== 'completed') return;
-
-    // Fetch role if only ID was passed
-    let roleDoc = role;
-    if (!roleDoc || !roleDoc.requiredSkills) {
-      roleDoc = await Role.findById(typeof role === 'object' ? role._id : role);
-    }
-    if (!roleDoc) return;
-
-    const candidateSkills = resumeData.skills && resumeData.skills.technical
-      ? resumeData.skills.technical
-      : [];
-    const roleSkills = roleDoc.requiredSkills || [];
-
-    const matchResult = calculateSkillMatch(candidateSkills, roleSkills);
-
-    await Candidate.findByIdAndUpdate(candidateId, {
-      skillMatchResult: {
-        ...matchResult,
-        computedAt: new Date(),
-      },
-    });
-
-    console.log(`[runSkillMatch] Match computed for candidate ${candidateId}: ${matchResult.matchPercentage}% (${matchResult.matchLabel})`);
-  } catch (err) {
-    console.error('[runSkillMatch] Error:', err.message);
-  }
-}
 
 /**
  * Trigger manual parsing for existing resume
@@ -176,7 +113,7 @@ exports.triggerParsing = async (req, res) => {
     const filePath = path.join(__dirname, '../../../', resumeData.fileUrl);
     const candidate = await Candidate.findById(candidateId).populate('appliedRole');
 
-    parseResumeAsync(resumeData._id, filePath, resumeData.fileType, candidate);
+    scheduleResumeParse(resumeData._id, filePath, resumeData.fileType, candidate);
 
     res.json({ message: 'Parsing triggered successfully', status: 'processing' });
   } catch (error) {

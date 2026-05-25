@@ -1,91 +1,110 @@
 const Candidate = require('./candidate.model');
 const Assessment = require('../assessment/assessment.model');
 const ResumeData = require('../resume/resume.model');
-const { parseResume } = require('../resume/parser.service');
+const { scheduleResumeParse } = require('../../services/resumeParse.service');
+const appLogger = require('../../utils/appLogger');
 const { generateAccessCode } = require('../../utils/generateToken');
 const { log } = require('../../utils/logger');
 const path = require('path');
 
 exports.getCandidates = async (req, res) => {
-  const { role, status, interviewStatus, search, page = 1, limit = 20 } = req.query;
+  const {
+    role, status, interviewStatus, search, experienceLevel,
+    page = 1, limit = 50,
+  } = req.query;
   const filter = {};
   if (role) filter.appliedRole = role;
   if (status) filter.assessmentStatus = status;
   if (interviewStatus) filter.interviewStatus = interviewStatus;
-  if (search) filter.$or = [
-    { name: { $regex: search, $options: 'i' } },
-    { email: { $regex: search, $options: 'i' } },
-  ];
+  if (experienceLevel) filter.experienceLevel = experienceLevel;
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+    ];
+  }
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+  const skip = (pageNum - 1) * limitNum;
+
   const [candidates, total] = await Promise.all([
     Candidate.find(filter)
       .populate('appliedRole', 'title department')
-      .skip(skip).limit(parseInt(limit))
-      .sort('-createdAt'),
+      .skip(skip)
+      .limit(limitNum)
+      .sort('-createdAt')
+      .lean(),
     Candidate.countDocuments(filter),
   ]);
-  
-  // Enrich with assignment count and computed assessment status
+
   const PipelineRecord = require('../pipeline/pipeline.model');
-  const enrichedCandidates = await Promise.all(
-    candidates.map(async (c) => {
-      const pipeline = await PipelineRecord.findOne({ 
-        candidateId: c._id, 
-        roleId: c.appliedRole?._id 
-      });
-      
-      let assignmentCount = 0;
-      let hasCompletedSteps = false;
-      let allAssignedCompleted = false;
+  const candidateIds = candidates.map((c) => c._id);
+  const roleIds = [...new Set(candidates.map((c) => c.appliedRole?._id).filter(Boolean))];
 
-      if (pipeline && pipeline.assignedAssessments) {
-        const assignedMap = pipeline.assignedAssessments;
-        const entries = assignedMap instanceof Map 
-          ? Array.from(assignedMap.entries()) 
-          : Object.entries(assignedMap);
-        
-        const assignedStepTypes = entries.filter(([, id]) => id).map(([stepType]) => stepType);
-        assignmentCount = assignedStepTypes.length;
+  const pipelines = candidateIds.length > 0
+    ? await PipelineRecord.find({
+      candidateId: { $in: candidateIds },
+      roleId: { $in: roleIds },
+    }).lean()
+    : [];
 
-        if (assignmentCount > 0) {
-          // Check if every assigned step is COMPLETED
-          allAssignedCompleted = assignedStepTypes.every(stepType => {
-            const stepStatus = pipeline.stepStatus?.[stepType];
-            return stepStatus?.status === 'COMPLETED' || stepStatus?.status === 'SKIPPED';
-          });
-        }
+  const pipelineKey = (cid, rid) => `${cid}:${rid}`;
+  const pipelineByKey = new Map();
+  pipelines.forEach((p) => {
+    pipelineByKey.set(pipelineKey(String(p.candidateId), String(p.roleId)), p);
+  });
+
+  const enrichedCandidates = candidates.map((c) => {
+    const pipeline = pipelineByKey.get(
+      pipelineKey(String(c._id), String(c.appliedRole?._id))
+    );
+
+    let assignmentCount = 0;
+    let hasCompletedSteps = false;
+    let allAssignedCompleted = false;
+
+    if (pipeline?.assignedAssessments) {
+      const assignedMap = pipeline.assignedAssessments;
+      const entries = assignedMap instanceof Map
+        ? Array.from(assignedMap.entries())
+        : Object.entries(assignedMap);
+
+      const assignedStepTypes = entries.filter(([, id]) => id).map(([stepType]) => stepType);
+      assignmentCount = assignedStepTypes.length;
+
+      if (assignmentCount > 0) {
+        allAssignedCompleted = assignedStepTypes.every((stepType) => {
+          const stepStatus = pipeline.stepStatus?.[stepType];
+          return stepStatus?.status === 'COMPLETED' || stepStatus?.status === 'SKIPPED';
+        });
       }
+    }
 
-      if (pipeline && pipeline.completedSteps && pipeline.completedSteps.length > 0) {
-        hasCompletedSteps = true;
-      }
+    if (pipeline?.completedSteps?.length > 0) {
+      hasCompletedSteps = true;
+    }
 
-      // Compute the display assessmentStatus:
-      // If all assigned assessments are done → completed
-      // If pipeline is fully finished → completed
-      // Otherwise use the stored value
-      let computedStatus = c.assessmentStatus;
-      if (allAssignedCompleted && assignmentCount > 0) {
-        computedStatus = 'completed';
-      } else if (pipeline?.status === 'FINISHED') {
-        computedStatus = 'completed';
-      }
+    let computedStatus = c.assessmentStatus;
+    if (allAssignedCompleted && assignmentCount > 0) {
+      computedStatus = 'completed';
+    } else if (pipeline?.status === 'FINISHED') {
+      computedStatus = 'completed';
+    }
 
-      return {
-        ...c.toObject(),
-        assignmentCount,
-        hasCompletedSteps,
-        assessmentStatus: computedStatus,
-      };
-    })
-  );
-  
-  res.json({ 
-    candidates: enrichedCandidates, 
-    total, 
-    page: parseInt(page), 
-    pages: Math.ceil(total / parseInt(limit)) 
+    return {
+      ...c,
+      assignmentCount,
+      hasCompletedSteps,
+      assessmentStatus: computedStatus,
+    };
+  });
+
+  res.json({
+    candidates: enrichedCandidates,
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
   });
 };
 
@@ -157,7 +176,7 @@ exports.createCandidate = async (req, res) => {
       console.log(`[createCandidate] Triggering async parsing...`);
       
       // Parse asynchronously
-      parseResumeAsync(resumeData._id, req.file.path, fileType, candidate);
+      scheduleResumeParse(resumeData._id, req.file.path, fileType, candidate);
     }
     
     res.status(201).json(candidate);
@@ -205,7 +224,7 @@ exports.updateCandidate = async (req, res) => {
       }
       
       // Parse asynchronously
-      parseResumeAsync(resumeData._id, req.file.path, fileType, candidate);
+      scheduleResumeParse(resumeData._id, req.file.path, fileType, candidate);
     }
     
     res.json(candidate);
@@ -461,40 +480,3 @@ exports.removeAssessment = async (req, res) => {
   }
 };
 
-/**
- * Parse resume asynchronously (helper function)
- */
-async function parseResumeAsync(resumeDataId, filePath, fileType, candidateDoc) {
-  try {
-    console.log(`[parseResumeAsync] Starting parsing for resumeDataId: ${resumeDataId}`);
-    console.log(`[parseResumeAsync] File path: ${filePath}`);
-    console.log(`[parseResumeAsync] File type: ${fileType}`);
-
-    const parsedData = await parseResume(filePath, fileType);
-
-    console.log(`[parseResumeAsync] Parsing completed. Status: ${parsedData.parsingStatus}`);
-
-    await ResumeData.findByIdAndUpdate(resumeDataId, {
-      ...parsedData,
-      parsingStatus: 'completed',
-    });
-
-    console.log(`[parseResumeAsync] Resume data updated successfully: ${resumeDataId}`);
-
-    // Run skill matching after successful parse
-    if (candidateDoc && candidateDoc.appliedRole) {
-      try {
-        const { runSkillMatch } = require('../resume/resume.controller');
-        await runSkillMatch(candidateDoc._id, candidateDoc.appliedRole);
-      } catch (matchErr) {
-        console.error('[parseResumeAsync] Skill match error:', matchErr.message);
-      }
-    }
-  } catch (error) {
-    console.error(`[parseResumeAsync] Parsing error:`, error);
-    await ResumeData.findByIdAndUpdate(resumeDataId, {
-      parsingStatus: 'failed',
-      parsingError: error.message,
-    });
-  }
-}

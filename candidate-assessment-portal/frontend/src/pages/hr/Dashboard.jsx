@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import api from '../../utils/api';
+import { useAnalytics } from '../../hooks/useAnalytics';
 import { Users, ClipboardCheck, UserCheck, Award, Clock, Target, TrendingUp, Plus, Settings, FileText, BarChart3 } from 'lucide-react';
 import '../../styles/Dashboard.css';
 import PageShell from '../../components/layout/PageShell';
@@ -53,23 +53,8 @@ function StatCard({ icon: Icon, label, value, themeIndex = 0, sub, subMuted, del
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [overview,     setOverview]     = useState(null);
-  const [funnel,       setFunnel]       = useState([]);
-  const [performance,  setPerformance]  = useState(null);
-  const [loading,      setLoading]      = useState(true);
+  const { overview, funnel, performance, loading } = useAnalytics();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    Promise.all([
-      api.get('/analytics/overview'),
-      api.get('/analytics/funnel'),
-      api.get('/analytics/performance'),
-    ]).then(([ov, fn, pf]) => {
-      setOverview(ov.data);
-      setFunnel(fn.data);
-      setPerformance(pf.data);
-    }).finally(() => setLoading(false));
-  }, []);
 
   if (loading) {
     return (
