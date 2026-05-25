@@ -1,0 +1,89 @@
+/* Analytics Page Styles */
+
+/* Spin Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* KPI Grid */
+.analytics-kpi-grid {
+  @apply grid gap-4 mb-6;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.analytics-kpi-card {
+  @apply text-center p-5;
+}
+
+.analytics-kpi-value {
+  @apply text-4xl font-extrabold;
+}
+
+.analytics-kpi-label {
+  @apply text-sm mt-1;
+  color: #64748b;
+}
+
+/* Charts Grid */
+.analytics-charts-grid {
+  @apply grid grid-cols-2 gap-5 mb-5;
+}
+
+.analytics-chart-title {
+  @apply text-base font-bold mb-5;
+}
+
+/* Insights */
+.analytics-insights-title {
+  @apply text-base font-bold mb-4;
+}
+
+.analytics-insights-list {
+  @apply flex flex-col gap-2.5;
+}
+
+.analytics-insight-item {
+  @apply px-4 py-3 rounded-lg text-sm;
+  color: #334155;
+}
+
+.analytics-insight-item.danger {
+  background: #fef2f2;
+  border-left: 3px solid #e11d48;
+}
+
+.analytics-insight-item.warning {
+  background: #fffbeb;
+  border-left: 3px solid #d97706;
+}
+
+.analytics-insight-item.info {
+  background: #eff6ff;
+  border-left: 3px solid #2563eb;
+}
+
+/* Loading State */
+.analytics-loading {
+  @apply py-10 text-center;
+  color: #64748b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .analytics-kpi-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .analytics-charts-grid {
+    @apply grid-cols-1;
+  }
+}

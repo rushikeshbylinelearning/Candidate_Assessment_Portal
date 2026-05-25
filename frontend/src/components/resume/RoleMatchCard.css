@@ -1,0 +1,288 @@
+/* ============================================
+   ROLE MATCH CARD
+   ============================================ */
+
+.rmc-card {
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Header */
+.rmc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.rmc-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rmc-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF4E6A, #E11D48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.rmc-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.rmc-view-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  color: #374151;
+  background: #F8FAFC;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.13s;
+}
+
+.rmc-view-btn:hover {
+  background: white;
+  border-color: #9CA3AF;
+}
+
+/* Body */
+.rmc-body {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+/* Circle */
+.rmc-circle-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.rmc-svg {
+  position: absolute;
+  inset: 0;
+}
+
+.rmc-progress-ring {
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rmc-circle-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  pointer-events: none;
+}
+.rmc-percent {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+.rmc-good-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #6B7280;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Insights panel */
+.rmc-insights {
+  flex: 1;
+  min-width: 0;
+}
+
+.rmc-insights-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 3px;
+}
+
+.rmc-insights-sub {
+  font-size: 12.5px;
+  color: #6B7280;
+  margin: 0 0 14px;
+  line-height: 1.45;
+}
+
+.rmc-stats-row {
+  display: flex;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.rmc-stat-col {
+  flex: 1;
+  padding: 9px 14px;
+  border-right: 1px solid #E5E7EB;
+}
+
+.rmc-stat-col:last-child {
+  border-right: none;
+}
+
+.rmc-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #6B7280;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.rmc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rmc-dot.green  { background: #22C55E; }
+.rmc-dot.red    { background: #E11D48; }
+.rmc-dot.orange { background: #F59E0B; }
+
+.rmc-stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+/* Missing Skills */
+.rmc-missing-row {
+  margin-bottom: 12px;
+}
+
+.rmc-missing-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 7px;
+}
+
+.rmc-missing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rmc-missing-tag {
+  padding: 4px 12px;
+  font-size: 12px;
+  background: #FEF2F2;
+  color: #E5383B;
+  border: 1px solid #FECACA;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+/* Matched Skills */
+.rmc-matched-row {
+  margin-bottom: 12px;
+}
+
+.rmc-matched-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 7px;
+}
+
+.rmc-matched-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rmc-matched-tag {
+  padding: 4px 12px;
+  font-size: 12px;
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+/* Info Banner */
+.rmc-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 13px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.rmc-info-banner svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Spinner */
+@keyframes rmc-spin {
+  to { transform: rotate(360deg); }
+}
+
+.rmc-spinner {
+  animation: rmc-spin 1s linear infinite;
+  color: #9CA3AF;
+}
+
+/* Empty State */
+.rmc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 22px;
+  text-align: center;
+}
+
+.rmc-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.rmc-empty-sub {
+  font-size: 13px;
+  color: #9CA3AF;
+  margin: 0;
+}
