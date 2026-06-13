@@ -5,6 +5,8 @@ import { AuthProvider } from './context/AuthContext';
 import HRLayout from './components/layout/HRLayout';
 
 const Login = lazy(() => import('./pages/hr/Login'));
+const SsoCallback = lazy(() => import('./pages/hr/SsoCallback'));
+const SsoLaunchRedirect = lazy(() => import('./pages/hr/SsoLaunchRedirect'));
 const Dashboard = lazy(() => import('./pages/hr/Dashboard'));
 const Candidates = lazy(() => import('./pages/hr/Candidates'));
 const CandidateDetail = lazy(() => import('./pages/hr/CandidateDetail'));
@@ -48,6 +50,8 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/sso-callback" element={<SsoCallback />} />
+            <Route path="/sso-login" element={<SsoLaunchRedirect />} />
             <Route path="/hr" element={<HRLayout />}>
               <Route index element={<Navigate to="/hr/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />

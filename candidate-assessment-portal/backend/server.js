@@ -34,6 +34,7 @@ const assessmentImportRoutes = require('./src/modules/assessmentImport/assessmen
 const workflowRoutes = require('./src/modules/workflow/workflow.routes');
 const rmsSyncRoutes = require('./src/modules/rmsSync/rmsSync.routes');
 const rmsWebhookRoutes = require('./src/modules/rmsSync/rmsWebhookReceiver');
+const ssoLoginRoutes = require('./src/routes/ssoLogin');
 
 connectDB();
 
@@ -101,6 +102,9 @@ const authLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
+
+// Portal SSO launch (must be before API routes and SPA catch-all)
+app.use(ssoLoginRoutes);
 
 app.get('/api/health', (req, res) => {
   const dbState = mongoose.connection.readyState;

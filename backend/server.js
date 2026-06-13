@@ -34,6 +34,7 @@ const assessmentImportRoutes = require('./src/modules/assessmentImport/assessmen
 const workflowRoutes = require('./src/modules/workflow/workflow.routes');
 const rmsSyncRoutes = require('./src/modules/rmsSync/rmsSync.routes');
 const rmsWebhookRoutes = require('./src/modules/rmsSync/rmsWebhookReceiver');
+const ssoLoginRoutes = require('./src/routes/ssoLogin');
 
 connectDB();
 
@@ -51,8 +52,12 @@ app.use(helmet({
 
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:5176',
+  'http://localhost:5177',
   'http://assessment-portal.legatolxp.online',
   'https://assessment-portal.legatolxp.online',
 ].filter(Boolean);
@@ -101,6 +106,8 @@ const authLimiter = rateLimit({
 
 app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
+
+app.use(ssoLoginRoutes);
 
 app.get('/api/health', (req, res) => {
   const dbState = mongoose.connection.readyState;

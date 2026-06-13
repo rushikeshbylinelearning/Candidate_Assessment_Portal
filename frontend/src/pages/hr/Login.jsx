@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Shield, Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -179,6 +179,14 @@ export default function Login() {
   const [btnPressed, setPress]  = useState(false);
   const { login, loading }      = useAuth();
   const navigate                = useNavigate();
+  const [searchParams]          = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'sso_error') {
+      const message = searchParams.get('message');
+      setError(message ? decodeURIComponent(message) : 'SSO sign-in failed. Use your local account or contact an administrator.');
+    }
+  }, [searchParams]);
 
   const isValid = form.email.includes('@') && form.password.length >= 6;
 
@@ -413,7 +421,7 @@ export default function Login() {
             {/* Demo credentials */}
             <div style={{ padding: '14px 16px', background: T.gray5, borderRadius: 12, border: `1px solid ${T.gray4}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
-                { role: 'Admin', email: 'admin@cap.com', pass: 'Admin@123' },
+                { role: 'Admin', email: 'admin@byline.com', pass: 'admin@2026' },
                 { role: 'HR',    email: 'hr@cap.com',    pass: 'Hr@12345'  },
               ].map(({ role, email, pass }) => (
                 <button

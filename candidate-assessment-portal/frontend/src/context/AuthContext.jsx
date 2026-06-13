@@ -22,6 +22,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * loginWithToken — used by SsoCallback to complete SSO sign-in.
+   * Stores the token and user object exactly like a normal login would.
+   */
+  const loginWithToken = (token, user) => {
+    localStorage.setItem('cap_token', token);
+    localStorage.setItem('cap_user', JSON.stringify(user));
+    setUser(user);
+  };
+
   const logout = () => {
     localStorage.removeItem('cap_token');
     localStorage.removeItem('cap_user');
@@ -29,7 +39,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, loginWithToken, logout, loading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

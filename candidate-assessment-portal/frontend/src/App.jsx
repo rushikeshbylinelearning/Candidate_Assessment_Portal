@@ -24,6 +24,7 @@ const AssessmentRunner = lazy(() => import('./pages/candidate/AssessmentRunner')
 const CompletionPage = lazy(() => import('./pages/candidate/CompletionPage'));
 const CandidateFlowPage = lazy(() => import('./pages/candidate/CandidateFlowPage'));
 const CandidateJourneyPage = lazy(() => import('./pages/hr/CandidateJourneyPage'));
+const SsoCallback = lazy(() => import('./pages/hr/SsoCallback'));
 
 function PageLoader() {
   return (
@@ -47,6 +48,8 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            {/* SSO callback — outside HRLayout so it renders before auth check */}
+            <Route path="/auth/sso-callback" element={<SsoCallback />} />
             <Route path="/login" element={<Login />} />
             <Route path="/hr" element={<HRLayout />}>
               <Route index element={<Navigate to="/hr/dashboard" replace />} />

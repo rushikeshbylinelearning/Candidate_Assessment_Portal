@@ -28,8 +28,14 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const loginWithToken = (token, userData) => {
+    localStorage.setItem('cap_token', token);
+    localStorage.setItem('cap_user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, loginWithToken, loading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );
